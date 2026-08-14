@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: miles
+      POSTGRES_PASSWORD: miles
+      POSTGRES_DB: miles
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+
+  worker:
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
+    environment:
+      RABBIT_URL: "${RABBIT_URL:-amqp://admin:12345678a@192.168.1.40}"
+      DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:12345678@192.168.1.40:5432/milesdb}"
+      QUEUE_NAME: "crawl.smiles"
+      PREFETCH_COUNT: "1"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,4 @@
+aio-pika==10.0.1
+asyncpg==0.27.0
+# camoufox 0.6.0 is not on PyPI; pin to latest available 0.5.4
+camoufox==0.5.4
