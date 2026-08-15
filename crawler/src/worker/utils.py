@@ -1,6 +1,6 @@
 """Utilitários para normalizar os voos retornados pela API da Smiles."""
 
-from datetime import date
+from datetime import date, datetime
 
 
 def parse_flights(data: dict) -> list:
@@ -24,11 +24,14 @@ def parse_flights(data: dict) -> list:
             results.append({
                 "voo": f"{airl.get('code', '')}-{flight.get('uid', '')}",
                 "companhia": airl.get("name", ""),
+                "carrier_code": airl.get("code", ""),
+                "flight_number": flight.get("uid", ""),
                 "origem": dep.get("airport", {}).get("code", ""),
                 "destino": arr.get("airport", {}).get("code", ""),
                 "partida": dep.get("date", ""),
                 "chegada": arr.get("date", ""),
                 "duracao": f"{dur.get('hours', 0)}h{dur.get('minutes', 0):02d}",
+                "duracao_minutos": dur.get("hours", 0) * 60 + dur.get("minutes", 0),
                 "escalas": flight.get("stops", 0),
                 "assentos": flight.get("availableSeats", 0),
                 "tarifas": fares,
@@ -74,11 +77,28 @@ def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
     if isinstance(travel_date, str):
         travel_date = date.fromisoformat(travel_date[:10])
 
+    cabin = flight.get("cabin", "ECONOMIC")
+    cabin = {
+        "ECONOMIC": "Economy",
+        "BUSINESS": "Business",
+        "FIRST": "First",
+    }.get(cabin, cabin.title())
+
+    def to_time(value):
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(
+                value.replace("Z", "+00:00")
+            ).time().replace(tzinfo=None)
+        except (AttributeError, ValueError):
+            return None
+
     return {
         "origin": flight.get("origem"),
         "destination": flight.get("destino"),
         "travel_date": travel_date,
-        "class": flight.get("cabin", "ECONOMIC"),
+        "class": cabin,
         "direct_only": flight.get("escalas", 0) == 0,
         "provider": provider,
         "fare_option_id": flight.get("fare_option_id", 1),
@@ -86,4 +106,11 @@ def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
         "taxes_cents": 0,
         "currency": "BRL",
         "seats_available": flight.get("assentos", 0),
+        "crawler_url": flight.get("crawler_url"),
+        "flight_duration_minutes": flight.get("duracao_minutos", 0),
+        "number_of_stops": flight.get("escalas", 0),
+        "departure_time": to_time(flight.get("partida")),
+        "arrival_time": to_time(flight.get("chegada")),
+        "carrier_code": flight.get("carrier_code", ""),
+        "flight_number": flight.get("flight_number", ""),
     }

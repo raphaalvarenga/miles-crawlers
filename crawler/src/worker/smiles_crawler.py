@@ -72,6 +72,8 @@ def _run_blocking_crawl(origem, destino, data, adultos):
     )
 
     flights = parse_flights(api_data)
+    for flight in flights:
+        flight["crawler_url"] = url
     return api_data, flights
 
 async def crawl_smiles(origem: str, destino: str, data: str, adultos: int = 1) -> Tuple[Optional[dict], list]:
