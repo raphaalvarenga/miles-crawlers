@@ -3,6 +3,28 @@
 from datetime import date, datetime
 
 
+def _flight_number(flight: dict) -> str:
+    """Obtém o número comercial estável, sem usar o uid efêmero da busca."""
+    sources = [
+        flight,
+        flight.get("flight", {}),
+        flight.get("operatingFlight", {}),
+        flight.get("marketingFlight", {}),
+    ]
+    for field in ("segments", "segmentList", "flightSegments"):
+        segments = flight.get(field, [])
+        if isinstance(segments, list):
+            sources.extend(segments)
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        for field in ("flightNumber", "flight_number", "number", "flightCode"):
+            value = source.get(field)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+    return ""
+
+
 def parse_flights(data: dict) -> list:
     """Parseia com a estrutura real da API Smiles."""
     results = []
@@ -12,6 +34,7 @@ def parse_flights(data: dict) -> list:
             arr = flight.get("arrival", {})
             airl = flight.get("airline", {})
             dur = flight.get("duration", {})
+            flight_number = _flight_number(flight)
 
             # Pega todas as tarifas disponíveis.
             fares = {}
@@ -22,10 +45,10 @@ def parse_flights(data: dict) -> list:
                 }
 
             results.append({
-                "voo": f"{airl.get('code', '')}-{flight.get('uid', '')}",
+                "voo": f"{airl.get('code', '')}-{flight_number}",
                 "companhia": airl.get("name", ""),
                 "carrier_code": airl.get("code", ""),
-                "flight_number": flight.get("uid", ""),
+                "flight_number": flight_number,
                 "origem": dep.get("airport", {}).get("code", ""),
                 "destino": arr.get("airport", {}).get("code", ""),
                 "partida": dep.get("date", ""),
