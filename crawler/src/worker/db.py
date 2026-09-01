@@ -50,15 +50,27 @@ async def mark_job_failed(job_id: str, error: str):
             error,
         )
 
+async def get_job_search_id(job_id: str):
+    """Obtém o SearchId associado ao job quando ele não vier na mensagem."""
+    async with pool.acquire() as conn:
+        try:
+            row = await conn.fetchrow(
+                'SELECT "SearchId" FROM crawl_jobs WHERE "Id" = $1',
+                job_id,
+            )
+        except asyncpg.UndefinedColumnError:
+            return None
+    return row["SearchId"] if row else None
+
 async def mark_search_request_provider_failed(search_id: str, provider: str):
-    await mark_search_request_provider_completed(search_id, provider, "Failed")
+    return await mark_search_request_provider_completed(search_id, provider, "Failed")
 
 async def mark_search_request_provider_done(search_id: str, provider: str):
-    await mark_search_request_provider_completed(search_id, provider, "Done")
+    return await mark_search_request_provider_completed(search_id, provider, "Done")
 
 async def mark_search_request_provider_completed(search_id: str, provider: str, status: str):
     async with pool.acquire() as conn:
-        await conn.execute(
+        return await conn.execute(
             """
             UPDATE search_request_providers
             SET "Status" = $3, "CompletedAt" = now()

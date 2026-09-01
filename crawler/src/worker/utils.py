@@ -93,9 +93,13 @@ def select_best_flight(flights: list) -> dict | None:
 
 def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
     """Converte um voo normalizado no formato esperado pelo repositório."""
-    miles_price = flight.get("smiles_milhas")
+    miles_price = flight.get("miles_price")
+    if miles_price is None:
+        miles_price = flight.get("smiles_milhas")
     if miles_price is None:
         miles_price = flight.get("smiles_club_milhas")
+    if miles_price is None:
+        miles_price = 0
 
     if isinstance(travel_date, str):
         travel_date = date.fromisoformat(travel_date[:10])

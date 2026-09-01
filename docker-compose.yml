@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   postgres:
+    profiles: ["infra"]
     image: postgres:15
     environment:
       POSTGRES_USER: miles
@@ -12,6 +13,7 @@ services:
       - "5433:5432"
 
   rabbitmq:
+    profiles: ["infra"]
     image: rabbitmq:3-management
     environment:
       RABBITMQ_DEFAULT_USER: guest
@@ -28,6 +30,17 @@ services:
       RABBIT_URL: "${RABBIT_URL:-amqp://admin:12345678a@192.168.1.40}"
       DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:12345678@192.168.1.40:5432/milesdb}"
       QUEUE_NAME: "crawl.smiles"
+      PREFETCH_COUNT: "1"
+    restart: unless-stopped
+
+  worker-azul:
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
+    environment:
+      RABBIT_URL: "${RABBIT_URL:-amqp://admin:12345678a@192.168.1.40}"
+      DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:12345678@192.168.1.40:5432/milesdb}"
+      QUEUE_NAME: "crawl.azul"
       PREFETCH_COUNT: "1"
     restart: unless-stopped
 
