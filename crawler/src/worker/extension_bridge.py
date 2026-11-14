@@ -6,7 +6,7 @@ página da companhia recebeu. O parse e as gravações no Postgres seguem no Pyt
 
 HTTP (Bearer token em tudo, menos /health):
     GET  /health                       estado da ponte e da extensão
-    GET  /jobs/next?provider=azul&wait=20   long-poll: 200 com o job ou 204
+    GET  /jobs/next?provider=azul|latam&wait=20   long-poll: 200 com o job ou 204
     POST /jobs/{id}/result   {"url", "payload"}   JSON da API de disponibilidade
     POST /jobs/{id}/failed   {"error"}
     POST /jobs/{id}/blocked  {"url"}               verificação anti-bot na aba
@@ -26,6 +26,8 @@ from aiohttp import web
 
 from worker.tudoazul_parser import AVAILABILITY_URL_FRAGMENT, build_url as azul_build_url
 from worker.tudoazul_parser import parse_tudoazul_flights
+from worker.latam_parser import REDEMPTION_URL_FRAGMENT, build_url as latam_build_url
+from worker.latam_parser import parse_latam_flights
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ class ProviderSpec:
 
 PROVIDERS: dict[str, ProviderSpec] = {
     "azul": ProviderSpec(azul_build_url, AVAILABILITY_URL_FRAGMENT, parse_tudoazul_flights),
+    "latam": ProviderSpec(latam_build_url, REDEMPTION_URL_FRAGMENT, parse_latam_flights),
 }
 
 

@@ -1,0 +1,444 @@
+{
+  "totalElements": 4,
+  "totalPages": 1,
+  "content": [
+    {
+      "summary": {
+        "tags": [],
+        "stopOvers": 1,
+        "duration": 935,
+        "flightCode": "LA8069",
+        "origin": {
+          "departure": "2026-12-25T22:45:00",
+          "iataCode": "MAD",
+          "city": "Madrid"
+        },
+        "destination": {
+          "arrival": "2026-12-26T10:20:00",
+          "iataCode": "GIG",
+          "city": "Rio de Janeiro"
+        },
+        "brands": [
+          {
+            "id": "SL",
+            "brandText": "LIGHT",
+            "cabin": {
+              "id": "Y",
+              "label": "Economy"
+            },
+            "farebasis": "MLESLZ0R",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 227564,
+              "display": "227564 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          },
+          {
+            "id": "KM",
+            "brandText": "STANDARD",
+            "cabin": {
+              "id": "Y",
+              "label": "Economy"
+            },
+            "farebasis": "MLEKMZ0R",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 254984,
+              "display": "254984 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          },
+          {
+            "id": "KD",
+            "brandText": "FULL",
+            "cabin": {
+              "id": "Y",
+              "label": "Economy"
+            },
+            "farebasis": "MLEKDZ0R",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 295790,
+              "display": "295790 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          },
+          {
+            "id": "EJ",
+            "brandText": "PREMIUM BUSINESS FULL",
+            "cabin": {
+              "id": "J",
+              "label": "Business"
+            },
+            "farebasis": "DLEEJZUR",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 652681,
+              "display": "652681 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          }
+        ],
+        "flightOperators": [
+          "LATAM Airlines Brasil"
+        ],
+        "isInterlinealFlight": false
+      },
+      "itinerary": [
+        {
+          "codeShare": false,
+          "interLine": false,
+          "duration": 635,
+          "equipment": "789",
+          "flight": {
+            "flightNumber": 8069,
+            "airlineCode": "LA",
+            "operatingAirlineCode": "LA",
+            "flightOperator": "LA"
+          },
+          "origin": "MAD",
+          "destination": "GRU",
+          "departure": "2026-12-25T22:45:00",
+          "arrival": "2026-12-26T05:20:00"
+        },
+        {
+          "codeShare": false,
+          "interLine": false,
+          "duration": 60,
+          "equipment": "789",
+          "flight": {
+            "flightNumber": 3472,
+            "airlineCode": "LA",
+            "operatingAirlineCode": "LA",
+            "flightOperator": "LA"
+          },
+          "origin": "GRU",
+          "destination": "GIG",
+          "departure": "2026-12-26T09:20:00",
+          "arrival": "2026-12-26T10:20:00"
+        }
+      ]
+    },
+    {
+      "summary": {
+        "tags": [],
+        "stopOvers": 1,
+        "duration": 935,
+        "flightCode": "LA8069",
+        "origin": {
+          "departure": "2026-12-25T22:45:00",
+          "iataCode": "MAD",
+          "city": "Madrid"
+        },
+        "destination": {
+          "arrival": "2026-12-26T10:20:00",
+          "iataCode": "GIG",
+          "city": "Rio de Janeiro"
+        },
+        "brands": [
+          {
+            "id": "SL",
+            "brandText": "LIGHT",
+            "cabin": {
+              "id": "Y",
+              "label": "Economy"
+            },
+            "farebasis": "MLESLZ0R",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 227564,
+              "display": "227564 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          },
+          {
+            "id": "KM",
+            "brandText": "STANDARD",
+            "cabin": {
+              "id": "Y",
+              "label": "Economy"
+            },
+            "farebasis": "MLEKMZ0R",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 254984,
+              "display": "254984 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          },
+          {
+            "id": "KD",
+            "brandText": "FULL",
+            "cabin": {
+              "id": "Y",
+              "label": "Economy"
+            },
+            "farebasis": "MLEKDZ0R",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 295790,
+              "display": "295790 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          },
+          {
+            "id": "EJ",
+            "brandText": "PREMIUM BUSINESS FULL",
+            "cabin": {
+              "id": "J",
+              "label": "Business"
+            },
+            "farebasis": "DLEEJZUR",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 652681,
+              "display": "652681 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          }
+        ],
+        "flightOperators": [
+          "LATAM Airlines Brasil"
+        ],
+        "isInterlinealFlight": false
+      },
+      "itinerary": [
+        {
+          "codeShare": false,
+          "interLine": false,
+          "duration": 635,
+          "equipment": "789",
+          "flight": {
+            "flightNumber": 8069,
+            "airlineCode": "LA",
+            "operatingAirlineCode": "LA",
+            "flightOperator": "LA"
+          },
+          "origin": "MAD",
+          "destination": "GRU",
+          "departure": "2026-12-25T22:45:00",
+          "arrival": "2026-12-26T05:20:00"
+        },
+        {
+          "codeShare": false,
+          "interLine": false,
+          "duration": 60,
+          "equipment": "789",
+          "flight": {
+            "flightNumber": 3472,
+            "airlineCode": "LA",
+            "operatingAirlineCode": "LA",
+            "flightOperator": "LA"
+          },
+          "origin": "GRU",
+          "destination": "GIG",
+          "departure": "2026-12-26T09:20:00",
+          "arrival": "2026-12-26T10:20:00"
+        }
+      ]
+    },
+    {
+      "summary": {
+        "tags": [],
+        "stopOvers": 0,
+        "duration": 620,
+        "flightCode": "IB269",
+        "origin": {
+          "departure": "2026-12-25T12:30:00",
+          "iataCode": "MAD",
+          "city": "Madrid"
+        },
+        "destination": {
+          "arrival": "2026-12-25T18:50:00",
+          "iataCode": "GIG",
+          "city": "Rio de Janeiro"
+        },
+        "brands": [
+          {
+            "id": "KD",
+            "brandText": "FULL",
+            "cabin": {
+              "id": "Y",
+              "label": "Economy"
+            },
+            "farebasis": "YDN0YOS0",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 570637,
+              "display": "570637 milhas"
+            },
+            "seatsRemaining": {
+              "count": 9,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 1401.66
+            }
+          }
+        ],
+        "flightOperators": [
+          "Iberia"
+        ],
+        "isInterlinealFlight": true
+      },
+      "itinerary": [
+        {
+          "codeShare": false,
+          "interLine": true,
+          "duration": 620,
+          "equipment": "789",
+          "flight": {
+            "flightNumber": 269,
+            "airlineCode": "IB",
+            "operatingAirlineCode": "IB",
+            "flightOperator": "IB"
+          },
+          "origin": "MAD",
+          "destination": "GIG",
+          "departure": "2026-12-25T12:30:00",
+          "arrival": "2026-12-25T18:50:00"
+        }
+      ]
+    },
+    {
+      "summary": {
+        "tags": [],
+        "stopOvers": 1,
+        "duration": 1030,
+        "flightCode": "LA1525",
+        "origin": {
+          "departure": "2026-12-25T11:50:00",
+          "iataCode": "MAD",
+          "city": "Madrid"
+        },
+        "destination": {
+          "arrival": "2026-12-26T01:00:00",
+          "iataCode": "GIG",
+          "city": "Rio de Janeiro"
+        },
+        "brands": [
+          {
+            "id": "EJ",
+            "brandText": "PREMIUM BUSINESS FULL",
+            "cabin": {
+              "id": "J",
+              "label": "Business"
+            },
+            "farebasis": "DLEEJZUR",
+            "price": {
+              "currency": "LOYALTY_POINTS",
+              "amount": 652681,
+              "display": "652681 milhas"
+            },
+            "seatsRemaining": {
+              "count": 4,
+              "lowAvailability": false
+            },
+            "taxes": {
+              "currency": "BRL",
+              "amount": 193.8
+            }
+          }
+        ],
+        "flightOperators": [
+          "Iberia",
+          "LATAM Airlines Brasil"
+        ],
+        "isInterlinealFlight": false
+      },
+      "itinerary": [
+        {
+          "codeShare": true,
+          "interLine": false,
+          "duration": 670,
+          "equipment": "789",
+          "flight": {
+            "flightNumber": 1525,
+            "airlineCode": "LA",
+            "operatingAirlineCode": "IB",
+            "flightOperator": "IB"
+          },
+          "origin": "MAD",
+          "destination": "GRU",
+          "departure": "2026-12-25T11:50:00",
+          "arrival": "2026-12-25T19:00:00"
+        },
+        {
+          "codeShare": false,
+          "interLine": false,
+          "duration": 65,
+          "equipment": "789",
+          "flight": {
+            "flightNumber": 3352,
+            "airlineCode": "LA",
+            "operatingAirlineCode": "LA",
+            "flightOperator": "LA"
+          },
+          "origin": "GRU",
+          "destination": "GIG",
+          "departure": "2026-12-25T23:55:00",
+          "arrival": "2026-12-26T01:00:00"
+        }
+      ]
+    }
+  ],
+  "extraDetails": {}
+}

@@ -1,17 +1,19 @@
-"""Worker da fila crawl.azul que delega a busca à extensão Chrome (Miles Fetcher).
+"""Worker das filas crawl.azul e crawl.latam que delega a busca à extensão Chrome (Miles Fetcher).
 
 Rode na mesma máquina do Chrome com a extensão:
 
     set BRIDGE_TOKEN=<o mesmo token configurado na extensão>
-    python run_bridge.py                    # consome crawl.azul e grava no Postgres
+    python run_bridge.py                    # consome crawl.azul e crawl.latam e grava no Postgres
 
 Teste sem RabbitMQ nem Postgres (só ponte + extensão):
 
     python run_bridge.py --once GIG MAD 2026-12-26
+    python run_bridge.py --once MAD GIG 2026-12-25 --provider latam
 
 Variáveis: BRIDGE_TOKEN (obrigatória), BRIDGE_HOST (127.0.0.1), BRIDGE_PORT (8765),
-BRIDGE_CLAIM_TIMEOUT_S (60), BRIDGE_JOB_TIMEOUT_S (90), além de RABBIT_URL,
-DATABASE_URL e QUEUE_NAME (padrão crawl.azul) do worker normal.
+BRIDGE_CLAIM_TIMEOUT_S (60), BRIDGE_JOB_TIMEOUT_S (90), BRIDGE_QUEUES (padrão
+crawl.<provider> para cada provider da ponte, separadas por vírgula), além de
+RABBIT_URL e DATABASE_URL do worker normal.
 """
 
 import argparse
@@ -23,7 +25,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
-os.environ.setdefault("QUEUE_NAME", "crawl.azul")
 
 from worker.extension_bridge import PROVIDERS, ExtensionBridge  # noqa: E402
 
@@ -58,9 +59,11 @@ async def run_worker(bridge: ExtensionBridge, host: str, port: int) -> None:
 
     for provider in PROVIDERS:
         consumer.CRAWLERS[provider] = bridge.crawler_for(provider)
+    queues = [q.strip() for q in os.getenv("BRIDGE_QUEUES", "").split(",") if q.strip()]
+    queues = queues or [f"crawl.{p}" for p in PROVIDERS]
     runner = await bridge.start(host, port)
     try:
-        await consumer.main()
+        await consumer.main(queues)
     finally:
         await runner.cleanup()
 

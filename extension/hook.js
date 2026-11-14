@@ -5,8 +5,11 @@
   if (window.__milesFetcherHook) return;
   window.__milesFetcherHook = true;
 
-  // Mantenha em sincronia com AVAILABILITY_URL_FRAGMENT (crawler/src/worker/tudoazul_parser.py).
-  const FRAGMENTS = ["/tudoazul/reservation/availability/"];
+  // Mantenha em sincronia com o `capture` de cada provider em crawler/src/worker/extension_bridge.py.
+  const FRAGMENTS = [
+    "/tudoazul/reservation/availability/",          // Azul (tudoazul_parser.py)
+    "/bff/air-offers/v2/offers/search/redemption",  // LATAM (latam_parser.py)
+  ];
   const TAG = "miles-fetcher";
 
   const matches = (url) => typeof url === "string" && FRAGMENTS.some((f) => url.includes(f));

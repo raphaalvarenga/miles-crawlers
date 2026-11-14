@@ -1,6 +1,7 @@
 // Laço do worker: pede um job à ponte local (long-poll), abre a URL de busca numa
 // aba, espera o hook.js capturar a resposta da API de disponibilidade, devolve o
-// JSON cru à ponte e fecha a aba. Um job por vez, com intervalo aleatório.
+// JSON cru à ponte e fecha a aba. Um job por vez; entre duas buscas da mesma
+// companhia, um intervalo aleatório (cada site tem seu próprio ritmo).
 //
 // Bloqueio anti-bot: avisa a ponte (o job falha), deixa a aba aberta, pausa o
 // provider e notifica. Quando a pessoa resolve e a página carrega normal na
@@ -24,9 +25,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ── Estado persistente ────────────────────────────────────────────────────
 async function loadRuntime() {
   const { [RUNTIME_KEY]: runtime } = await chrome.storage.local.get(RUNTIME_KEY);
-  return {
+  const merged = {
     paused: {},        // provider → { since, tabId, url }
-    nextAllowedAt: 0,  // ms: ritmo entre buscas
+    nextAllowedAt: {}, // provider → ms: ritmo entre buscas da mesma companhia
     pageTimes: [],     // ms das buscas da última hora
     lastPollAt: null,
     lastJob: null,     // { id, provider, url, at, outcome }
@@ -34,6 +35,9 @@ async function loadRuntime() {
     counters: { done: 0, failed: 0, blocked: 0 },
     ...(runtime || {}),
   };
+  // 0.1.x guardava um número só.
+  if (typeof merged.nextAllowedAt !== "object" || merged.nextAllowedAt === null) merged.nextAllowedAt = {};
+  return merged;
 }
 
 async function saveRuntime(runtime) {
@@ -149,7 +153,7 @@ async function openAndCapture(settings, job) {
 async function processJob(settings, runtime, job) {
   const now = Date.now();
   runtime.pageTimes.push(now);
-  runtime.nextAllowedAt = now + randomDelayMs(settings);
+  runtime.nextAllowedAt[job.provider] = now + randomDelayMs(settings);
   runtime.lastJob = { id: job.id, provider: job.provider, url: job.url, at: now, outcome: "running" };
   await saveRuntime(runtime);
 
@@ -216,12 +220,14 @@ async function loop() {
         await saveRuntime(runtime);
         break; // o alarme tenta de novo
       }
-      if (now < runtime.nextAllowedAt) {
-        await sleep(Math.min(runtime.nextAllowedAt - now, 20_000));
+      const active = settings.providers.filter((p) => PROVIDERS[p] && !runtime.paused[p]);
+      if (!active.length) break;
+      const providers = active.filter((p) => now >= (runtime.nextAllowedAt[p] || 0));
+      if (!providers.length) {
+        const nextAt = Math.min(...active.map((p) => runtime.nextAllowedAt[p] || 0));
+        await sleep(Math.min(Math.max(nextAt - now, 500), 20_000));
         continue;
       }
-      const providers = settings.providers.filter((p) => PROVIDERS[p] && !runtime.paused[p]);
-      if (!providers.length) break;
 
       let job = null;
       try {

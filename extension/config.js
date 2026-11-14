@@ -4,8 +4,8 @@ export const DEFAULT_SETTINGS = {
   enabled: true,
   bridgeUrl: "http://127.0.0.1:8765",
   token: "",
-  providers: ["azul"],
-  delayMinS: 8,     // intervalo aleatório entre buscas
+  providers: ["azul", "latam"],
+  delayMinS: 8,     // intervalo aleatório entre buscas da mesma companhia
   delayMaxS: 20,
   maxPerHour: 60,   // teto de páginas abertas por hora
   foreground: false // abrir a aba da busca em primeiro plano
@@ -16,6 +16,11 @@ export const PROVIDERS = {
   azul: {
     label: "Azul (TudoAzul)",
     allowedHosts: ["www.voeazul.com.br"],
+    pageTimeoutMs: 60_000,
+  },
+  latam: {
+    label: "LATAM (LATAM Pass)",
+    allowedHosts: ["www.latamairlines.com"],
     pageTimeoutMs: 60_000,
   },
 };

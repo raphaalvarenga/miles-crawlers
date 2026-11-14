@@ -123,7 +123,9 @@ async def handle_message(message: IncomingMessage):
                         search_id,
                     )
 
-async def main():
+async def main(queue_names=None):
+    """Consome QUEUE_NAME, ou várias filas no mesmo canal (prefetch vale por fila)."""
+    queue_names = list(queue_names or [QUEUE_NAME])
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -133,13 +135,11 @@ async def main():
     channel = await connection.channel()
     await channel.set_qos(prefetch_count=PREFETCH_COUNT)
 
-    queue = await channel.declare_queue(
-        QUEUE_NAME,
-        passive=True,
-    )
-    await queue.consume(handle_message)
+    for name in queue_names:
+        queue = await channel.declare_queue(name, passive=True)
+        await queue.consume(handle_message)
 
-    print(f"Listening on {QUEUE_NAME}...")
+    print(f"Listening on {', '.join(queue_names)}...")
     try:
         await asyncio.Future()
     finally:
