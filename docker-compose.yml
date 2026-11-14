@@ -33,7 +33,11 @@ services:
       PREFETCH_COUNT: "1"
     restart: unless-stopped
 
+  # Worker Camoufox da Azul: barrado pelo anti-bot. A Azul agora roda pela
+    # extensão Chrome + run_bridge.py (veja extension/README.md). Só sobe com
+    # `docker compose --profile camoufox-azul up`, para não disputar a fila crawl.azul.
   worker-azul:
+    profiles: ["camoufox-azul"]
     build:
       context: .
       dockerfile: crawler/Dockerfile

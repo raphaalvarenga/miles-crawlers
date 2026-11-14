@@ -16,11 +16,28 @@ from worker.db import (
     mark_search_request_provider_failed,
     insert_fare_snapshot,
 )
-from worker.smiles_crawler import crawl_smiles
-from worker.tudoazul_crawler import crawl_tudoazul
 from worker.utils import flight_to_snapshot
 
 logger = logging.getLogger(__name__)
+
+
+# Imports tardios: a ponte da extensão roda sem Camoufox instalado.
+async def _crawl_smiles(*args):
+    from worker.smiles_crawler import crawl_smiles
+    return await crawl_smiles(*args)
+
+
+async def _crawl_tudoazul(*args):
+    from worker.tudoazul_crawler import crawl_tudoazul
+    return await crawl_tudoazul(*args)
+
+
+# provider -> async (origem, destino, data, adultos) -> (api_data, flights).
+# run_bridge.py troca a entrada da Azul pela ponte com a extensão Chrome.
+CRAWLERS = {
+    "smiles": _crawl_smiles,
+    "azul": _crawl_tudoazul,
+}
 
 
 async def _mark_provider_done(search_id, provider):
@@ -64,11 +81,7 @@ async def handle_message(message: IncomingMessage):
                 search_id = await get_job_search_id(job_id)
                 logger.info("SearchId recuperado do crawl job: id=%s search_id=%s", job_id, search_id)
 
-            crawlers = {
-                "smiles": crawl_smiles,
-                "azul": crawl_tudoazul,
-            }
-            crawler = crawlers.get(provider)
+            crawler = CRAWLERS.get(provider)
             if crawler is None:
                 raise ValueError(f"Provider não suportado: {provider}")
 

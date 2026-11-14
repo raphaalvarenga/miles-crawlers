@@ -3,13 +3,14 @@
 import asyncio
 import json
 import logging
-import re
-import time
-from datetime import datetime
 from typing import Optional, Tuple
-from urllib.parse import urlencode
 
 from camoufox.sync_api import Camoufox
+
+try:
+    from worker.tudoazul_parser import _journey_groups, build_url, parse_tudoazul_flights  # noqa: F401 (reexportado p/ debug)
+except ImportError:  # debug_azul_crawler.py roda direto da pasta worker/
+    from tudoazul_parser import _journey_groups, build_url, parse_tudoazul_flights  # noqa: F401
 
 
 logger = logging.getLogger(__name__)
@@ -17,135 +18,6 @@ logger = logging.getLogger(__name__)
 
 class TodoAzulCrawlerError(RuntimeError):
     """A busca Azul não devolveu uma resposta de disponibilidade utilizável."""
-
-
-def build_url(origem: str, destino: str, data: str, adultos: int) -> str:
-    departure_date = datetime.strptime(data, "%Y-%m-%d").strftime("%m/%d/%Y")
-    params = {
-        "c[0].ds": origem,
-        "c[0].std": departure_date,
-        "c[0].as": destino,
-        "p[0].t": "ADT",
-        "p[0].c": adultos,
-        "p[0].cp": "false",
-        "f.dl": 3,
-        "f.dr": 3,
-        "cc": "PTS",
-    }
-    return (
-        "https://www.voeazul.com.br/br/pt/home/selecao-voo?"
-        f"{urlencode(params)}&{int(time.time() * 1000)}"
-    )
-
-
-def _first_value(*values, default=None):
-    return next((value for value in values if value is not None), default)
-
-
-def _airport(value) -> str:
-    if isinstance(value, dict):
-        return _first_value(value.get("code"), value.get("airportCode"), value.get("iata"), default="")
-    return value or ""
-
-
-def _duration_minutes(value) -> int:
-    if isinstance(value, (int, float)):
-        return int(value)
-    if isinstance(value, str):
-        match = re.fullmatch(r"PT(?:(\d+)H)?(?:(\d+)M)?", value)
-        if match:
-            return int(match.group(1) or 0) * 60 + int(match.group(2) or 0)
-    return 0
-
-
-def _as_int(value) -> int:
-    try:
-        return int(round(float(value)))
-    except (TypeError, ValueError):
-        return 0
-
-
-def _journey_groups(value):
-    """Encontra listas de jornadas na resposta, mesmo quando envelopada pela API."""
-    if isinstance(value, dict):
-        journeys = value.get("journeys")
-        if isinstance(journeys, list) and journeys:
-            yield value, journeys
-        for child in value.values():
-            yield from _journey_groups(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from _journey_groups(child)
-
-
-def parse_tudoazul_flights(data: dict) -> list:
-    """Normaliza jornadas retornadas pela busca TudoAzul em pontos."""
-    results = []
-    seen = set()
-
-    for parent, journeys in _journey_groups(data):
-        for journey in journeys:
-            if not isinstance(journey, dict):
-                continue
-
-            segments = journey.get("segments") or journey.get("segmentList") or []
-            if not segments:
-                continue
-            first_segment, last_segment = segments[0], segments[-1]
-            if not isinstance(first_segment, dict) or not isinstance(last_segment, dict):
-                continue
-            flight = first_segment.get("flight", {}) if isinstance(first_segment, dict) else {}
-            last_flight = last_segment.get("flight", {}) if isinstance(last_segment, dict) else {}
-
-            departure = _first_value(journey.get("departure"), first_segment.get("departure"))
-            arrival = _first_value(journey.get("arrival"), last_segment.get("arrival"))
-            origin = _airport(_first_value(journey.get("origin"), first_segment.get("origin")))
-            destination = _airport(_first_value(journey.get("destination"), last_segment.get("destination")))
-            carrier = _first_value(flight.get("carrierCode"), flight.get("carrier"), default="AD")
-            flight_numbers = [
-                str(segment.get("flight", {}).get("flightNumber", ""))
-                for segment in segments
-                if isinstance(segment, dict) and segment.get("flight", {}).get("flightNumber") is not None
-            ]
-            flight_number = "/".join(filter(None, flight_numbers))
-            fare = _first_value(journey.get("cheapestFare"), journey.get("fare"), default={})
-            total = fare.get("total", {}) if isinstance(fare, dict) else {}
-            points = _first_value(
-                total.get("points") if isinstance(total, dict) else None,
-                fare.get("points") if isinstance(fare, dict) else None,
-                journey.get("lowestPoints"),
-                parent.get("lowestPoints"),
-                default=0,
-            )
-            money = _first_value(
-                total.get("amount") if isinstance(total, dict) else None,
-                fare.get("amount") if isinstance(fare, dict) else None,
-                default=0,
-            )
-            stops = _as_int(_first_value(journey.get("stopsCount"), journey.get("stops"), default=len(segments) - 1))
-            duration = _duration_minutes(_first_value(journey.get("duration"), first_segment.get("duration")))
-            key = (origin, destination, departure, arrival, carrier, flight_number)
-            if not origin or not destination or key in seen:
-                continue
-            seen.add(key)
-
-            results.append({
-                "voo": f"{carrier}-{flight_number}",
-                "companhia": _first_value(flight.get("operatedBy"), last_flight.get("operatedBy"), default="Azul"),
-                "carrier_code": carrier,
-                "flight_number": flight_number,
-                "origem": origin,
-                "destino": destination,
-                "partida": departure,
-                "chegada": arrival,
-                "duracao_minutos": duration,
-                "escalas": stops,
-                "assentos": _as_int(_first_value(journey.get("availableSeats"), journey.get("seatsAvailable"), default=0)),
-                "cabin": _first_value(fare.get("cabin") if isinstance(fare, dict) else None, journey.get("cabin"), default="ECONOMIC"),
-                "miles_price": _as_int(points),
-                "money_brl": money,
-            })
-    return results
 
 
 def _run_blocking_crawl(origem: str, destino: str, data: str, adultos: int):

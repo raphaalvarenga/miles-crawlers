@@ -1,0 +1,111 @@
+{
+  "_comment": "Resposta real de b2c-api.voeazul.com.br/tudoAzulReservationAvailability/api/tudoazul/reservation/availability/v6/availability (GIG-MAD 2026-12-26), reduzida: 3 jornadas (1 conexao, 2 conexoes, indisponivel) e so os amountLevels 1 e 2.",
+  "data": {
+    "companionPass": false,
+    "discountType": "ConvenienceFee",
+    "trips": [
+      {
+        "departureStation": "GIG",
+        "arrivalStation": "MAD",
+        "std": "2026-12-26T00:00:00",
+        "currencyCode": "BRL",
+        "flightType": "International",
+        "fareInformation": { "lowestPoints": 402000.0, "highestPoints": 813000.0 },
+        "journeys": [
+          {
+            "journeySellKey": "AD~2849~ ~~GIG~12/26/2026 10:20~VCP~12/26/2026 11:35~~^AD~8754~ ~~VCP~12/26/2026 22:15~MAD~12/27/2026 12:25~~",
+            "status": { "available": true, "reason": null },
+            "fares": [
+              {
+                "available": true,
+                "productClass": { "code": "ZK", "category": "Economy", "name": "Economy" },
+                "classOfService": "M",
+                "paxPoints": [
+                  { "amountLevel": 1, "levels": [ { "paxType": "ADT", "fareMoney": 0.0,
+                    "points": { "amount": 402000.0, "discountedAmount": 402000.0 },
+                    "taxesAndFees": 95.08, "convenienceFee": 135.9, "totalMoney": 230.98, "currencyCode": "BRL" } ] },
+                  { "amountLevel": 2, "levels": [ { "paxType": "ADT", "fareMoney": 3852.0,
+                    "points": { "amount": 40200.0, "discountedAmount": 40200.0 },
+                    "taxesAndFees": 95.08, "convenienceFee": 135.9, "totalMoney": 4082.98, "currencyCode": "BRL" } ] }
+                ]
+              },
+              {
+                "available": true,
+                "productClass": { "code": "ZE", "category": "Business", "name": "Business" },
+                "classOfService": "J",
+                "paxPoints": [
+                  { "amountLevel": 1, "levels": [ { "paxType": "ADT", "fareMoney": 0.0,
+                    "points": { "amount": 813000.0, "discountedAmount": 813000.0 },
+                    "taxesAndFees": 95.08, "convenienceFee": 135.9, "totalMoney": 230.98, "currencyCode": "BRL" } ] },
+                  { "amountLevel": 2, "levels": [ { "paxType": "ADT", "fareMoney": 11216.00,
+                    "points": { "amount": 40650.0, "discountedAmount": 40650.0 },
+                    "taxesAndFees": 95.08, "convenienceFee": 135.9, "totalMoney": 11446.98, "currencyCode": "BRL" } ] }
+                ]
+              }
+            ],
+            "identifier": {
+              "operatedBy": "UX", "carrierCode": "AD", "flightNumber": "2849",
+              "departureStation": "GIG", "arrivalStation": "MAD",
+              "std": "2026-12-26T10:20:00", "sta": "2026-12-27T12:25:00",
+              "duration": { "days": 0, "hours": 22, "minutes": 5 },
+              "connections": { "count": 1, "stationsInformation": [ { "code": "VCP", "duration": "10:40:00" } ] }
+            },
+            "segments": [
+              { "identifier": { "operatedBy": "AD", "carrierCode": "AD", "flightNumber": "2849",
+                  "departureStation": "GIG", "arrivalStation": "VCP", "std": "2026-12-26T10:20:00", "sta": "2026-12-26T11:35:00" },
+                "legs": [ { "legInfo": { "capacity": 136, "sold": 44, "remainingSeats": 92 } } ] },
+              { "identifier": { "operatedBy": "UX", "carrierCode": "AD", "flightNumber": "8754",
+                  "departureStation": "VCP", "arrivalStation": "MAD", "std": "2026-12-26T22:15:00", "sta": "2026-12-27T12:25:00" },
+                "legs": [ { "legInfo": { "capacity": 296, "sold": 209, "remainingSeats": 87 } } ] }
+            ]
+          },
+          {
+            "journeySellKey": "AD~4205~ ~~GIG~12/26/2026 14:45~CNF~12/26/2026 15:50~~^AD~4046~ ~~CNF~12/26/2026 17:05~VCP~12/26/2026 18:20~~^AD~8754~ ~~VCP~12/26/2026 22:15~MAD~12/27/2026 12:25~~",
+            "status": { "available": true, "reason": null },
+            "fares": [
+              {
+                "available": true,
+                "productClass": { "code": "ZK", "category": "Economy", "name": "Economy" },
+                "classOfService": "M",
+                "paxPoints": [
+                  { "amountLevel": 1, "levels": [ { "paxType": "ADT", "fareMoney": 0.0,
+                    "points": { "amount": 402000.0, "discountedAmount": 402000.0 },
+                    "taxesAndFees": 95.08, "convenienceFee": 135.9, "totalMoney": 230.98, "currencyCode": "BRL" } ] }
+                ]
+              }
+            ],
+            "identifier": {
+              "operatedBy": "UX", "carrierCode": "AD", "flightNumber": "4205",
+              "departureStation": "GIG", "arrivalStation": "MAD",
+              "std": "2026-12-26T14:45:00", "sta": "2026-12-27T12:25:00",
+              "duration": { "days": 0, "hours": 17, "minutes": 40 },
+              "connections": { "count": 2, "stationsInformation": [ { "code": "CNF", "duration": "01:15:00" }, { "code": "VCP", "duration": "03:55:00" } ] }
+            },
+            "segments": [
+              { "identifier": { "carrierCode": "AD", "flightNumber": "4205", "departureStation": "GIG", "arrivalStation": "CNF" },
+                "legs": [ { "legInfo": { "remainingSeats": 97 } } ] },
+              { "identifier": { "carrierCode": "AD", "flightNumber": "4046", "departureStation": "CNF", "arrivalStation": "VCP" },
+                "legs": [ { "legInfo": { "remainingSeats": 59 } } ] },
+              { "identifier": { "carrierCode": "AD", "flightNumber": "8754", "departureStation": "VCP", "arrivalStation": "MAD" },
+                "legs": [ { "legInfo": { "remainingSeats": 87 } } ] }
+            ]
+          },
+          {
+            "journeySellKey": "AD~2849~ ~~GIG~12/26/2026 10:20~VCP~12/26/2026 11:35~~^AD~8750~ ~~VCP~12/26/2026 18:15~LIS~12/27/2026 07:20~~^AD~7851~ ~L~LIS~12/27/2026 11:35~MAD~12/27/2026 13:50~~",
+            "status": { "available": false, "reason": "Tarifa indisponível" },
+            "fares": [],
+            "identifier": {
+              "operatedBy": "UX", "carrierCode": "AD", "flightNumber": "2849",
+              "departureStation": "GIG", "arrivalStation": "MAD",
+              "std": "2026-12-26T10:20:00", "sta": "2026-12-27T13:50:00",
+              "duration": { "days": 0, "hours": 23, "minutes": 30 },
+              "connections": { "count": 2 }
+            },
+            "segments": []
+          }
+        ]
+      }
+    ]
+  },
+  "notifications": []
+}

@@ -1,0 +1,86 @@
+import { DEFAULT_SETTINGS, PROVIDERS, bridgeUrlAllowed, loadSettings, saveSettings } from "./config.js";
+
+const $ = (id) => document.getElementById(id);
+const say = (text) => {
+  $("msg").textContent = text;
+  setTimeout(() => { if ($("msg").textContent === text) $("msg").textContent = ""; }, 4000);
+};
+const when = (ms) => (ms ? new Date(ms).toLocaleString("pt-BR") : "—");
+
+async function fill() {
+  const s = await loadSettings();
+  $("enabled").checked = s.enabled;
+  $("bridgeUrl").value = s.bridgeUrl;
+  $("token").value = s.token;
+  $("delayMinS").value = s.delayMinS;
+  $("delayMaxS").value = s.delayMaxS;
+  $("maxPerHour").value = s.maxPerHour;
+  $("foreground").checked = s.foreground;
+  $("providers").innerHTML = "";
+  for (const [id, p] of Object.entries(PROVIDERS)) {
+    const label = document.createElement("label");
+    label.className = "check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = id;
+    box.checked = s.providers.includes(id);
+    label.append(box, ` ${p.label}`);
+    $("providers").append(label);
+  }
+}
+
+async function save() {
+  const bridgeUrl = $("bridgeUrl").value.trim() || DEFAULT_SETTINGS.bridgeUrl;
+  if (!bridgeUrlAllowed(bridgeUrl)) return say("URL recusada: https, ou http só em 127.0.0.1/localhost.");
+  const num = (id, fallback) => {
+    const v = Number($(id).value);
+    return Number.isFinite(v) && v >= 0 ? v : fallback;
+  };
+  await saveSettings({
+    enabled: $("enabled").checked,
+    bridgeUrl,
+    token: $("token").value.trim(),
+    providers: [...$("providers").querySelectorAll("input:checked")].map((b) => b.value),
+    delayMinS: num("delayMinS", DEFAULT_SETTINGS.delayMinS),
+    delayMaxS: num("delayMaxS", DEFAULT_SETTINGS.delayMaxS),
+    maxPerHour: Math.max(1, num("maxPerHour", DEFAULT_SETTINGS.maxPerHour)),
+    foreground: $("foreground").checked,
+  });
+  say("Salvo.");
+}
+
+async function showStatus() {
+  const { runtime } = await chrome.storage.local.get("runtime");
+  if (!runtime) {
+    $("status").textContent = "Ainda não rodou. Configure o token e salve.";
+    return;
+  }
+  const paused = Object.entries(runtime.paused || {})
+    .map(([p, v]) => `${p} desde ${when(v.since)} (aba ${v.tabId})`).join("; ") || "nenhuma";
+  const job = runtime.lastJob;
+  $("status").textContent = [
+    `Última consulta à ponte: ${when(runtime.lastPollAt)}`,
+    `Último job: ${job ? `${job.id} ${job.outcome} em ${when(job.at)}` : "—"}`,
+    `Buscas na última hora: ${(runtime.pageTimes || []).filter((t) => Date.now() - t < 3_600_000).length}`,
+    `Concluídos ${runtime.counters?.done ?? 0} · falhas ${runtime.counters?.failed ?? 0} · bloqueios ${runtime.counters?.blocked ?? 0}`,
+    `Pausas: ${paused}`,
+    `Último erro: ${runtime.lastError ? `${when(runtime.lastError.at)} — ${runtime.lastError.message}` : "—"}`,
+  ].join("\n");
+}
+
+$("save").addEventListener("click", save);
+$("resume").addEventListener("click", async () => {
+  await chrome.runtime.sendMessage({ type: "resume" });
+  say("Pausas removidas.");
+  showStatus();
+});
+$("health").addEventListener("click", async () => {
+  const r = await chrome.runtime.sendMessage({ type: "health" });
+  say(r && r.ok ? `Ponte ok: aguardando ${JSON.stringify(r.body.waiting)}` : `Ponte inacessível: ${r && r.error}`);
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.runtime) showStatus();
+});
+
+fill();
+showStatus();

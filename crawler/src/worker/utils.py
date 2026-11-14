@@ -1,5 +1,7 @@
 """Utilitários para normalizar os voos retornados pela API da Smiles."""
 
+from __future__ import annotations
+
 from datetime import date, datetime
 
 
@@ -107,6 +109,7 @@ def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
     cabin = flight.get("cabin", "ECONOMIC")
     cabin = {
         "ECONOMIC": "Economy",
+        "PREMIUM_ECONOMY": "PremiumEconomy",
         "BUSINESS": "Business",
         "FIRST": "First",
     }.get(cabin, cabin.title())
@@ -130,7 +133,7 @@ def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
         "provider": provider,
         "fare_option_id": flight.get("fare_option_id", 1),
         "miles_price": miles_price,
-        "taxes_cents": 0,
+        "taxes_cents": flight.get("taxes_cents", 0),
         "currency": "BRL",
         "seats_available": flight.get("assentos", 0),
         "crawler_url": flight.get("crawler_url"),
