@@ -1,0 +1,12 @@
+# Contexto do build do worker é a raiz do repositório (crawler/Dockerfile).
+.git
+.venv
+.claude
+.vscode
+.pytest_cache
+extension
+deploy
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+crawler/tests

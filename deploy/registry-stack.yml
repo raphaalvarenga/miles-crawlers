@@ -1,0 +1,31 @@
+# Registry de imagens do homelab (sem TLS), para colar como stack no Portainer.
+#
+# Fica em http://192.168.1.40:5050. Toda máquina que faz push ou pull precisa
+# ter "192.168.1.40:5050" em "insecure-registries" no daemon.json do Docker
+# (o seu PC e cada nó do swarm). Veja deploy/README.md.
+
+version: "3.8"
+
+services:
+  registry:
+    image: registry:2
+    ports:
+      - target: 5000
+        published: 5050
+        protocol: tcp
+        mode: host
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - registry-data:/var/lib/registry
+    deploy:
+      replicas: 1
+      placement:
+        # O volume é local: o registry precisa voltar sempre no mesmo nó.
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+volumes:
+  registry-data:

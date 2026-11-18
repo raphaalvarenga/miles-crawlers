@@ -1,0 +1,55 @@
+# Stack do Milheirinho para o swarm do homelab (colar no Portainer).
+#
+# Imagens geradas por deploy/build-push.ps1 e enviadas ao registry local.
+# Postgres e RabbitMQ continuam onde já estão (192.168.1.40); os endereços
+# padrão já vêm nas imagens (appsettings.json da API e config.py do worker).
+#
+# A ponte da Azul/LATAM não entra aqui: ela depende da extensão no seu Chrome
+# e continua rodando no seu PC (crawler/run_bridge.py).
+
+version: "3.8"
+
+services:
+  api:
+    image: 192.168.1.40:5050/miles-api:latest
+    ports:
+      - target: 8080
+        published: 5000
+        protocol: tcp
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Para trocar sem gerar imagem nova, descomente e ajuste:
+      # ConnectionStrings__Postgres: "Host=192.168.1.40;Port=5432;Username=postgres;Password=...;Database=milesdb"
+      # RabbitMq__Host: "192.168.1.40"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+
+  frontend:
+    # O endereço da API foi gravado na imagem no build (NEXT_PUBLIC_API_BASE_URL).
+    image: 192.168.1.40:5050/milheirinho-frontend:latest
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: tcp
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+
+  smiles-worker:
+    image: 192.168.1.40:5050/miles-smiles-worker:latest
+    environment:
+      QUEUE_NAME: crawl.smiles
+      PREFETCH_COUNT: "1"
+      # RABBIT_URL: "amqp://admin:...@192.168.1.40"
+      # DATABASE_URL: "postgresql://postgres:...@192.168.1.40:5432/milesdb"
+    deploy:
+      # Cada busca abre um Firefox (Camoufox); 1 réplica já processa a fila em ordem.
+      replicas: 1
+      resources:
+        limits:
+          memory: 2G
+      restart_policy:
+        condition: any
