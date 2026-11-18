@@ -45,8 +45,8 @@ Com a extensão ligada, uma aba abre a busca, fecha sozinha e o terminal mostra 
 
 - `hook.js` (mundo da página, `document_start`): embrulha `fetch` e `XMLHttpRequest` e copia o corpo das respostas cuja URL contém `/tudoazul/reservation/availability/`. Não altera nada do que o site recebe.
 - `relay.js`: repassa a captura ao background e detecta a tela de bloqueio ("comportamento incomum vindo do seu IP").
-- `background.js`: processa um job por vez. Entre duas buscas da mesma companhia há um intervalo aleatório (8 a 20 s por padrão); o teto de buscas por hora vale para o Chrome todo. A espera máxima da resposta é de 60 s.
-- **Bloqueio**: o job falha na hora (o front cai no cache), a aba fica aberta, o provider pausa e aparece uma notificação. Quando a página carrega normal de novo na mesma aba, a fila volta sozinha. Também dá para usar *Retomar* nas opções.
+- `background.js`: um laço por programa, em paralelo: uma busca da Smiles e uma da Azul podem rodar ao mesmo tempo, cada uma na sua aba, mas cada programa faz um job por vez. Entre duas buscas do mesmo programa há um intervalo aleatório (8 a 20 s por padrão); o teto de buscas por hora vale para o Chrome todo. A espera máxima da resposta é de 60 s. Como os laços gravam o estado ao mesmo tempo, toda alteração passa por `updateRuntime`, que aplica uma de cada vez.
+- **Bloqueio**: o job falha na hora (o front cai no cache), a aba fica aberta, só aquele programa pausa (os outros seguem) e aparece uma notificação. Quando a página carrega normal de novo na mesma aba, a fila volta sozinha. Também dá para usar *Retomar* nas opções.
 
 ## Limites conhecidos
 

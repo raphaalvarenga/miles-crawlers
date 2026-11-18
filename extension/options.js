@@ -57,10 +57,14 @@ async function showStatus() {
   }
   const paused = Object.entries(runtime.paused || {})
     .map(([p, v]) => `${p} desde ${when(v.since)} (aba ${v.tabId})`).join("; ") || "nenhuma";
-  const job = runtime.lastJob;
+  const jobs = Object.entries(runtime.lastJobs || {});
+  const jobLines = jobs.length
+    ? jobs.map(([p, j]) => `  ${PROVIDERS[p]?.label ?? p}: ${j.id} ${j.outcome} em ${when(j.at)}`)
+    : [`  ${runtime.lastJob ? `${runtime.lastJob.id} ${runtime.lastJob.outcome} em ${when(runtime.lastJob.at)}` : "—"}`];
   $("status").textContent = [
     `Última consulta à ponte: ${when(runtime.lastPollAt)}`,
-    `Último job: ${job ? `${job.id} ${job.outcome} em ${when(job.at)}` : "—"}`,
+    "Último job de cada programa:",
+    ...jobLines,
     `Buscas na última hora: ${(runtime.pageTimes || []).filter((t) => Date.now() - t < 3_600_000).length}`,
     `Concluídos ${runtime.counters?.done ?? 0} · falhas ${runtime.counters?.failed ?? 0} · bloqueios ${runtime.counters?.blocked ?? 0}`,
     `Pausas: ${paused}`,

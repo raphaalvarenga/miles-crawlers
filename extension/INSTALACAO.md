@@ -89,6 +89,9 @@ Na página de opções:
 | **Token** | o mesmo do passo 2 |
 | **Companhias** | Smiles, Azul e/ou LATAM |
 | **Intervalo mín./máx.** | 8 e 20 s (padrão): espera aleatória entre buscas da mesma companhia |
+
+Cada programa marcado roda em paralelo, na sua própria aba: uma busca da Smiles
+não espera a da Azul terminar.
 | **Máx. buscas/hora** | 60 (padrão) |
 | **Abrir a aba em primeiro plano** | desmarcado, para as abas não roubarem o foco |
 
@@ -122,7 +125,7 @@ no homelab, tire a Smiles da ponte assim.
 - O Chrome precisa ficar aberto com a extensão ligada, e a janela da ponte também.
   Pode minimizar.
 - **Bloqueio do site:** se a Azul ou a LATAM mostrarem a tela de "comportamento
-  incomum", ou a Smiles a de "Validação de segurança" ("Eu sou humano"), a extensão pausa aquela companhia, deixa a aba aberta e mostra uma
+  incomum", ou a Smiles a de "Validação de segurança" ("Eu sou humano"), a extensão pausa só esse programa, deixa a aba aberta e mostra uma
   notificação. Resolva a verificação na própria aba: a fila volta sozinha. Também dá
   para clicar em **Retomar (tirar pausa)** nas opções.
 - **Atualizar a extensão:** depois de `git pull`, abra `chrome://extensions` e clique

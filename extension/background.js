@@ -1,14 +1,15 @@
-// Laço do worker: pede um job à ponte local (long-poll), abre a URL de busca numa
-// aba, espera o hook.js capturar a resposta da API de disponibilidade, devolve o
-// JSON cru à ponte e fecha a aba. Um job por vez; entre duas buscas da mesma
-// companhia, um intervalo aleatório (cada site tem seu próprio ritmo).
+// Laços do worker: um por programa (Smiles, Azul, LATAM), rodando em paralelo. Cada
+// laço pede um job à ponte local (long-poll), abre a URL de busca numa aba, espera o
+// hook.js capturar a resposta da API de disponibilidade, devolve o JSON cru à ponte
+// e fecha a aba. Cada programa tem um job por vez e o seu próprio intervalo entre
+// buscas; o teto de buscas por hora vale para o Chrome todo.
 //
-// Bloqueio anti-bot: avisa a ponte (o job falha), deixa a aba aberta, pausa o
-// provider e notifica. Quando a pessoa resolve e a página carrega normal na
-// mesma aba, o provider volta sozinho (ou pelo botão "Retomar" nas opções).
+// Bloqueio anti-bot: avisa a ponte (o job falha), deixa a aba aberta, pausa só
+// aquele programa e notifica. Quando a pessoa resolve e a página volta ao normal
+// na mesma aba, o programa volta sozinho (ou pelo botão "Retomar" nas opções).
 //
 // O service worker do MV3 pode ser descarregado a qualquer hora: o que precisa
-// sobreviver fica em chrome.storage.local, e um alarme a cada 30 s religa o laço.
+// sobreviver fica em chrome.storage.local, e um alarme a cada 30 s religa os laços.
 import {
   EXTENSION_VERSION, PROVIDERS, bridgeUrlAllowed, jobUrlAllowed, loadSettings,
 } from "./config.js";
@@ -17,7 +18,7 @@ const ALARM = "miles-tick";
 const RUNTIME_KEY = "runtime";
 const POLL_WAIT_S = 20; // < 30 s de ociosidade do service worker
 
-let looping = false;
+const running = new Set(); // programas com laço ativo
 const waiters = new Map(); // tabId → { capture, resolve }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,21 +28,39 @@ async function loadRuntime() {
   const { [RUNTIME_KEY]: runtime } = await chrome.storage.local.get(RUNTIME_KEY);
   const merged = {
     paused: {},        // provider → { since, tabId, url }
-    nextAllowedAt: {}, // provider → ms: ritmo entre buscas da mesma companhia
-    pageTimes: [],     // ms das buscas da última hora
+    nextAllowedAt: {}, // provider → ms: ritmo entre buscas do mesmo programa
+    pageTimes: [],     // ms das buscas da última hora (todos os programas)
     lastPollAt: null,
-    lastJob: null,     // { id, provider, url, at, outcome }
+    lastJob: null,     // o mais recente de todos: { id, provider, url, at, outcome }
+    lastJobs: {},      // provider → último job daquele programa
     lastError: null,   // { at, message }
     counters: { done: 0, failed: 0, blocked: 0 },
     ...(runtime || {}),
   };
   // 0.1.x guardava um número só.
   if (typeof merged.nextAllowedAt !== "object" || merged.nextAllowedAt === null) merged.nextAllowedAt = {};
+  if (typeof merged.lastJobs !== "object" || merged.lastJobs === null) merged.lastJobs = {};
   return merged;
 }
 
-async function saveRuntime(runtime) {
-  await chrome.storage.local.set({ [RUNTIME_KEY]: runtime });
+// Os laços rodam ao mesmo tempo: toda alteração do estado passa por esta fila, que
+// lê, aplica `change` e grava uma de cada vez (sem uma sobrescrever a outra).
+let runtimeChain = Promise.resolve();
+function updateRuntime(change) {
+  const next = runtimeChain.then(async () => {
+    const runtime = await loadRuntime();
+    const result = change(runtime);
+    await chrome.storage.local.set({ [RUNTIME_KEY]: runtime });
+    return result;
+  });
+  runtimeChain = next.catch(() => {});
+  return next;
+}
+
+function setError(message) {
+  return updateRuntime((runtime) => {
+    runtime.lastError = { at: Date.now(), message };
+  });
 }
 
 // ── Ponte ─────────────────────────────────────────────────────────────────
@@ -87,11 +106,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 async function resumeIfBlockedTab(tabId) {
-  const runtime = await loadRuntime();
-  const providers = Object.keys(runtime.paused).filter((p) => runtime.paused[p].tabId === tabId);
+  const providers = await updateRuntime((runtime) => {
+    const found = Object.keys(runtime.paused).filter((p) => runtime.paused[p].tabId === tabId);
+    for (const p of found) delete runtime.paused[p];
+    return found;
+  });
   if (!providers.length) return;
-  for (const p of providers) delete runtime.paused[p];
-  await saveRuntime(runtime);
   notify(`resumed:${tabId}`, "Milheirinho Coletor retomado", `Verificação resolvida: ${providers.join(", ")} volta à fila.`);
   setTimeout(() => chrome.tabs.remove(tabId).catch(() => {}), 3000);
   loop();
@@ -150,19 +170,32 @@ async function openAndCapture(settings, job) {
   return { tab, outcome };
 }
 
-async function processJob(settings, runtime, job) {
+// Registra o resultado do job: contador, último job (geral e do programa) e erro.
+function finishJob(job, outcome, extra) {
+  return updateRuntime((runtime) => {
+    const last = runtime.lastJobs[job.provider];
+    if (last && last.id === job.id) last.outcome = outcome;
+    if (runtime.lastJob && runtime.lastJob.id === job.id) runtime.lastJob.outcome = outcome;
+    runtime.counters[outcome] = (runtime.counters[outcome] || 0) + 1;
+    if (extra) extra(runtime);
+  });
+}
+
+async function processJob(settings, job) {
   const now = Date.now();
-  runtime.pageTimes.push(now);
-  runtime.nextAllowedAt[job.provider] = now + randomDelayMs(settings);
-  runtime.lastJob = { id: job.id, provider: job.provider, url: job.url, at: now, outcome: "running" };
-  await saveRuntime(runtime);
+  await updateRuntime((runtime) => {
+    runtime.pageTimes.push(now);
+    runtime.nextAllowedAt[job.provider] = now + randomDelayMs(settings);
+    runtime.lastJob = { id: job.id, provider: job.provider, url: job.url, at: now, outcome: "running" };
+    runtime.lastJobs[job.provider] = { ...runtime.lastJob };
+  });
 
   if (!jobUrlAllowed(job)) {
     const message = `URL fora do site de ${job.provider}: ${String(job.url).slice(0, 200)}`;
     await bridge(settings, "POST", `/jobs/${job.id}/failed`, { error: message }).catch(() => {});
-    runtime.lastJob.outcome = "failed";
-    runtime.lastError = { at: Date.now(), message };
-    runtime.counters.failed += 1;
+    await finishJob(job, "failed", (runtime) => {
+      runtime.lastError = { at: Date.now(), message };
+    });
     return;
   }
 
@@ -176,13 +209,12 @@ async function processJob(settings, runtime, job) {
         captured_at: new Date().toISOString(),
         extension_version: EXTENSION_VERSION,
       });
-      runtime.lastJob.outcome = "done";
-      runtime.counters.done += 1;
+      await finishJob(job, "done");
     } else if (outcome.kind === "blocked") {
       closeTab = false;
-      runtime.paused[job.provider] = { since: Date.now(), tabId: tab.id, url: outcome.url };
-      runtime.lastJob.outcome = "blocked";
-      runtime.counters.blocked += 1;
+      await finishJob(job, "blocked", (runtime) => {
+        runtime.paused[job.provider] = { since: Date.now(), tabId: tab.id, url: outcome.url };
+      });
       await bridge(settings, "POST", `/jobs/${job.id}/blocked`, { url: outcome.url }).catch(() => {});
       notify(`blocked:${job.provider}`, `Verificação em ${PROVIDERS[job.provider].label}`,
         "Resolva na aba aberta (recarregue quando o site liberar). A fila volta sozinha depois.");
@@ -193,9 +225,9 @@ async function processJob(settings, runtime, job) {
         closed: "a aba foi fechada antes da resposta",
         error: outcome.message,
       }[outcome.kind] || outcome.kind;
-      runtime.lastJob.outcome = "failed";
-      runtime.lastError = { at: Date.now(), message: `job ${job.id}: ${message}` };
-      runtime.counters.failed += 1;
+      await finishJob(job, "failed", (runtime) => {
+        runtime.lastError = { at: Date.now(), message: `job ${job.id}: ${message}` };
+      });
       await bridge(settings, "POST", `/jobs/${job.id}/failed`, { error: message }).catch(() => {});
     }
   } finally {
@@ -203,58 +235,59 @@ async function processJob(settings, runtime, job) {
   }
 }
 
-// ── Laço ──────────────────────────────────────────────────────────────────
+// ── Laços ─────────────────────────────────────────────────────────────────
+// Liga um laço para cada programa marcado que ainda não tem o seu.
 async function loop() {
-  if (looping) return;
-  looping = true;
+  const settings = await loadSettings();
+  if (!settings.enabled || !settings.token) return;
+  for (const provider of settings.providers) {
+    if (PROVIDERS[provider] && !running.has(provider)) providerLoop(provider);
+  }
+}
+
+async function providerLoop(provider) {
+  running.add(provider);
   try {
     for (;;) {
       const settings = await loadSettings();
-      if (!settings.enabled || !settings.token) break;
-      const runtime = await loadRuntime();
-      const now = Date.now();
-      runtime.pageTimes = runtime.pageTimes.filter((t) => now - t < 3_600_000);
+      if (!settings.enabled || !settings.token || !settings.providers.includes(provider)) break;
 
-      if (runtime.pageTimes.length >= settings.maxPerHour) {
-        runtime.lastError = { at: now, message: `limite de ${settings.maxPerHour} buscas/hora atingido` };
-        await saveRuntime(runtime);
-        break; // o alarme tenta de novo
-      }
-      const active = settings.providers.filter((p) => PROVIDERS[p] && !runtime.paused[p]);
-      if (!active.length) break;
-      const providers = active.filter((p) => now >= (runtime.nextAllowedAt[p] || 0));
-      if (!providers.length) {
-        const nextAt = Math.min(...active.map((p) => runtime.nextAllowedAt[p] || 0));
-        await sleep(Math.min(Math.max(nextAt - now, 500), 20_000));
+      const gate = await updateRuntime((runtime) => {
+        const now = Date.now();
+        runtime.pageTimes = runtime.pageTimes.filter((t) => now - t < 3_600_000);
+        if (runtime.paused[provider]) return { stop: true };
+        if (runtime.pageTimes.length >= settings.maxPerHour) {
+          runtime.lastError = { at: now, message: `limite de ${settings.maxPerHour} buscas/hora atingido` };
+          return { stop: true }; // o alarme tenta de novo
+        }
+        return { waitMs: (runtime.nextAllowedAt[provider] || 0) - now };
+      });
+      if (gate.stop) break;
+      if (gate.waitMs > 0) {
+        await sleep(Math.min(Math.max(gate.waitMs, 500), 20_000));
         continue;
       }
 
       let job = null;
       try {
-        for (const provider of providers) {
-          const wait = providers.length > 1 ? 5 : POLL_WAIT_S;
-          job = await bridge(settings, "GET", `/jobs/next?provider=${encodeURIComponent(provider)}&wait=${wait}`);
+        job = await bridge(settings, "GET", `/jobs/next?provider=${encodeURIComponent(provider)}&wait=${POLL_WAIT_S}`);
+        await updateRuntime((runtime) => {
           runtime.lastPollAt = Date.now();
-          if (job) break;
-        }
+        });
       } catch (error) {
-        runtime.lastError = { at: Date.now(), message: `ponte: ${error.message || error}` };
-        await saveRuntime(runtime);
+        await setError(`ponte: ${error.message || error}`);
         break; // ponte fora do ar: o alarme tenta de novo em 30 s
       }
-      if (!job) {
-        await saveRuntime(runtime);
-        continue;
-      }
+      if (!job) continue;
+
       try {
-        await processJob(settings, runtime, job);
+        await processJob(settings, job);
       } catch (error) {
-        runtime.lastError = { at: Date.now(), message: `job ${job.id}: ${error.message || error}` };
+        await setError(`job ${job.id}: ${error.message || error}`);
       }
-      await saveRuntime(runtime);
     }
   } finally {
-    looping = false;
+    running.delete(provider);
   }
 }
 
@@ -282,10 +315,10 @@ chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !String(sender.url || "").startsWith(chrome.runtime.getURL(""))) return;
   if (message.type === "resume") {
-    loadRuntime().then(async (runtime) => {
+    updateRuntime((runtime) => {
       runtime.paused = {};
       runtime.lastError = null;
-      await saveRuntime(runtime);
+    }).then(() => {
       loop();
       sendResponse({ ok: true });
     });
