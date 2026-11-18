@@ -2,10 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Miles Fetcher</title>
+  <title>Milheirinho Coletor</title>
+  <link rel="icon" href="icons/icon32.png">
   <style>
     body { font: 14px/1.4 system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; color: #1d2433; }
-    h1 { font-size: 20px; } h2 { font-size: 15px; margin-top: 28px; }
+    h1 { font-size: 20px; color: #0B3D91; display: flex; align-items: center; gap: 10px; }
+    h1 img { width: 40px; height: 40px; }
+    h2 { font-size: 15px; margin-top: 28px; }
     label { display: block; margin: 10px 0 4px; font-weight: 600; }
     input[type=text], input[type=password], input[type=number] { width: 100%; box-sizing: border-box; padding: 6px 8px; }
     .row { display: flex; gap: 12px; } .row > div { flex: 1; }
@@ -16,7 +19,7 @@
   </style>
 </head>
 <body>
-  <h1>Miles Fetcher</h1>
+  <h1><img src="icons/icon128.png" alt="">Milheirinho Coletor</h1>
   <p>Pega jobs da ponte local (<code>python run_bridge.py</code>), abre a busca da companhia numa aba e devolve o JSON da API de disponibilidade.</p>
 
   <label class="check"><input type="checkbox" id="enabled"> Ligado</label>

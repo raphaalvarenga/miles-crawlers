@@ -92,7 +92,7 @@ async function resumeIfBlockedTab(tabId) {
   if (!providers.length) return;
   for (const p of providers) delete runtime.paused[p];
   await saveRuntime(runtime);
-  notify(`resumed:${tabId}`, "Miles Fetcher retomado", `Verificação resolvida: ${providers.join(", ")} volta à fila.`);
+  notify(`resumed:${tabId}`, "Milheirinho Coletor retomado", `Verificação resolvida: ${providers.join(", ")} volta à fila.`);
   setTimeout(() => chrome.tabs.remove(tabId).catch(() => {}), 3000);
   loop();
 }

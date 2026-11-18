@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Miles Fetcher",
-  "description": "Busca disponibilidade em pontos/milhas (Azul, LATAM) para o Miles: pega jobs da ponte local, abre a busca e devolve o JSON da API.",
-  "version": "0.2.0",
+  "name": "Milheirinho Coletor",
+  "description": "Coleta preços em milhas da Azul e da LATAM para o Milheirinho: pega buscas da ponte local, abre a busca da companhia e devolve o resultado.",
+  "version": "0.3.0",
   "minimum_chrome_version": "116",
   "background": {
     "service_worker": "background.js",
@@ -47,14 +47,16 @@
   ],
   "options_page": "options.html",
   "action": {
-    "default_title": "Miles Fetcher",
+    "default_title": "Milheirinho Coletor",
     "default_icon": {
       "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
       "48": "icons/icon48.png"
     }
   },
   "icons": {
     "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   }

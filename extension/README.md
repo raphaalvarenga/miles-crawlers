@@ -1,4 +1,4 @@
-# Miles Fetcher — extensão Chrome
+# Milheirinho Coletor — extensão Chrome
 
 Busca a disponibilidade em pontos/milhas da Azul e da LATAM a partir de um Chrome real, onde o anti-bot deixa passar, e devolve o JSON da API ao pipeline que já existe.
 
@@ -7,7 +7,7 @@ miles-api ──► RabbitMQ crawl.azul  ─┐
               RabbitMQ crawl.latam ─┴─► run_bridge.py (consumer + HTTP 127.0.0.1:8765)
                                            ▲  GET  /jobs/next?provider=…  (long-poll)
                                            │  POST /jobs/{id}/result      (JSON da API)
-                                     extensão Miles Fetcher
+                                     extensão Milheirinho Coletor
                                            │ abre a página de busca numa aba
                                            ▼
                         hook.js lê a resposta da API de disponibilidade:
