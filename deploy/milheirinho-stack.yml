@@ -31,7 +31,8 @@ services:
     image: 192.168.1.40:5050/milheirinho-frontend:latest
     ports:
       - target: 3000
-        published: 3000
+        # A 3000 já está em uso no homelab.
+        published: 3080
         protocol: tcp
     deploy:
       replicas: 1

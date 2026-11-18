@@ -44,6 +44,8 @@ def build_url(origem: str, destino: str, data: str, adultos: int = 1) -> str:
 
 _CABIN_BY_CATEGORY = {
     "economy": "ECONOMIC",
+    # Nos voos nacionais a Azul chama a classe econômica de "Regular".
+    "regular": "ECONOMIC",
     "premiumeconomy": "PREMIUM_ECONOMY",
     "business": "BUSINESS",
     "first": "FIRST",

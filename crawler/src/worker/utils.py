@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
+
+logger = logging.getLogger(__name__)
+
+# Valores aceitos pelo enum FlightClass da API.
+_CLASS_BY_CABIN = {
+    "ECONOMIC": "Economy",
+    "ECONOMY": "Economy",
+    "PREMIUM_ECONOMY": "PremiumEconomy",
+    "BUSINESS": "Business",
+    "FIRST": "First",
+}
 
 
 def _flight_number(flight: dict) -> str:
@@ -106,13 +118,12 @@ def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
     if isinstance(travel_date, str):
         travel_date = date.fromisoformat(travel_date[:10])
 
-    cabin = flight.get("cabin", "ECONOMIC")
-    cabin = {
-        "ECONOMIC": "Economy",
-        "PREMIUM_ECONOMY": "PremiumEconomy",
-        "BUSINESS": "Business",
-        "FIRST": "First",
-    }.get(cabin, cabin.title())
+    raw_cabin = flight.get("cabin") or "ECONOMIC"
+    cabin = _CLASS_BY_CABIN.get(str(raw_cabin).upper())
+    if cabin is None:
+        # A API só aceita estas quatro classes; um valor desconhecido no banco quebra a busca.
+        logger.warning("Cabine desconhecida %r; gravando como Economy", raw_cabin)
+        cabin = "Economy"
 
     def to_time(value):
         if not value:

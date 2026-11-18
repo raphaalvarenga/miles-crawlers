@@ -5,7 +5,7 @@ Tudo roda em `192.168.1.40`:
 | Serviço | Endereço |
 |---|---|
 | Registry de imagens | `192.168.1.40:5050` |
-| Site (frontend) | http://192.168.1.40:3000 |
+| Site (frontend) | http://192.168.1.40:3080 |
 | API | http://192.168.1.40:5000 |
 | Worker da Smiles | sem porta (consome `crawl.smiles`) |
 
