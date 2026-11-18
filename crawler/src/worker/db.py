@@ -122,3 +122,31 @@ async def insert_fare_snapshot(snapshot: dict):
             snapshot.get("carrier_code", ""),
             snapshot.get("flight_number", ""),
         )
+
+
+async def db_now():
+    """Relógio do Postgres, o mesmo usado em LastCrawledAt."""
+    async with pool.acquire() as conn:
+        return await conn.fetchval("SELECT now()")
+
+
+async def delete_stale_fare_snapshots(origin, destination, travel_date, provider, crawled_since) -> int:
+    """Apaga os voos da rota que não voltaram no crawl iniciado em crawled_since.
+
+    Cada crawl traz todas as cabines da rota/data, então um voo que não foi
+    regravado nele saiu de venda (esgotou, mudou de horário ou foi cancelado).
+    """
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            DELETE FROM fare_snapshots
+            WHERE "Origin" = $1 AND "Destination" = $2 AND "TravelDate" = $3
+              AND "Provider" = $4 AND "LastCrawledAt" < $5
+            """,
+            origin,
+            destination,
+            travel_date,
+            provider,
+            crawled_since,
+        )
+    return int(result.split()[-1])

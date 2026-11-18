@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+from datetime import date
 import aio_pika
 from aio_pika import IncomingMessage, ExchangeType
 from worker.config import RABBIT_URL, QUEUE_NAME, PREFETCH_COUNT
@@ -15,6 +16,8 @@ from worker.db import (
     mark_job_running,
     mark_search_request_provider_failed,
     insert_fare_snapshot,
+    db_now,
+    delete_stale_fare_snapshots,
 )
 from worker.utils import flight_to_snapshot
 
@@ -96,9 +99,21 @@ async def handle_message(message: IncomingMessage):
                 await mark_job_done(job_id, provider)
                 return
 
+            crawled_since = await db_now()
             for flight in flights:
                 snapshot = flight_to_snapshot(flight, travel_date, provider)
                 await insert_fare_snapshot(snapshot)
+
+            # Só limpa quando o crawl trouxe voos: lista vazia pode ser falha da página.
+            removed = await delete_stale_fare_snapshots(
+                str(origin).upper(),
+                str(destination).upper(),
+                date.fromisoformat(str(travel_date)[:10]),
+                provider,
+                crawled_since,
+            )
+            if removed:
+                logger.info("Job %s: %d voos que saíram de venda removidos", job_id, removed)
 
             if search_id is not None:
                 await _mark_provider_done(search_id, provider)

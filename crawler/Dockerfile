@@ -21,7 +21,7 @@ RUN python -m pip install --upgrade pip
 RUN pip install -r requirements.txt
 RUN camoufox fetch
 
-COPY crawler /app
+COPY crawler/ /app
 
 ENV QUEUE_NAME=crawl.smiles
 ENV PREFETCH_COUNT=1

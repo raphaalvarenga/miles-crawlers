@@ -1,4 +1,5 @@
 import json
+import time
 import asyncio
 import logging
 from camoufox.sync_api import Camoufox
@@ -9,8 +10,33 @@ from worker.utils import parse_flights
 logger = logging.getLogger(__name__)
 
 
+MAX_ATTEMPTS = 2  # navegadores abertos quando a resposta vem sem voos
+RETRY_DELAY_S = 3
+EMPTY_GRACE_S = 8  # quanto esperar por outra resposta depois de uma vazia
+
+
 class SmilesCrawlerError(RuntimeError):
     """A busca Smiles não devolveu uma resposta de disponibilidade utilizável."""
+
+
+def _flight_count(payload) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    segments = payload.get("requestedFlightSegmentList") or []
+    if not segments or not isinstance(segments[0], dict):
+        return 0
+    return len(segments[0].get("flightList") or [])
+
+
+def _summary(payload) -> str:
+    """Resumo curto de uma resposta para o log (o JSON inteiro é grande)."""
+    if not isinstance(payload, dict):
+        return repr(payload)[:300]
+    keys = ("resultType", "calendarStatus", "hasG3", "hasCongener", "error", "message", "errorMessage")
+    info = {k: payload.get(k) for k in keys if k in payload}
+    info["segmentos"] = len(payload.get("requestedFlightSegmentList") or [])
+    info["chaves"] = sorted(payload)[:12]
+    return json.dumps(info, ensure_ascii=False, default=str)
 
 def build_url(origem, destino, data, adultos):
     from datetime import datetime
@@ -31,17 +57,13 @@ def build_url(origem, destino, data, adultos):
         f"&cabin=ALL"
     )
 
-def _run_blocking_crawl(origem, destino, data, adultos):
-    url = build_url(origem, destino, data, adultos)
-
+def _capture_once(url):
+    """Abre um navegador novo, carrega a busca e devolve as respostas de disponibilidade."""
     captured = []
-    api_found = False
-    response_count = 0
     matching_urls = []
+    state = {"api_found": False, "responses": 0}
     page_title = ""
     page_text = ""
-
-    logger.info("Smiles: iniciando busca em %s", url)
 
     with Camoufox(
         headless=True,
@@ -53,8 +75,7 @@ def _run_blocking_crawl(origem, destino, data, adultos):
         page = browser.new_page()
 
         def handle_response(response):
-            nonlocal api_found, response_count
-            response_count += 1
+            state["responses"] += 1
             try:
                 if (
                     response.url and
@@ -65,7 +86,7 @@ def _run_blocking_crawl(origem, destino, data, adultos):
                     payload = json.loads(body)
                     captured.append(payload)
                     matching_urls.append(response.url)
-                    api_found = True
+                    state["api_found"] = True
                     logger.info("Smiles: resposta de disponibilidade capturada url=%s", response.url)
             except (json.JSONDecodeError, UnicodeDecodeError) as error:
                 logger.warning("Smiles: resposta inválida em %s: %s", response.url, error)
@@ -75,9 +96,15 @@ def _run_blocking_crawl(origem, destino, data, adultos):
         page.on("response", handle_response)
         try:
             page.goto(url, wait_until="networkidle", timeout=120000)
+            empty_since = None
             for _ in range(120):
-                if api_found:
+                if any(_flight_count(p) for p in captured):
                     break
+                if state["api_found"]:
+                    # Resposta sem voos: dá um tempo para a página buscar de novo sozinha.
+                    empty_since = empty_since or time.monotonic()
+                    if time.monotonic() - empty_since >= EMPTY_GRACE_S:
+                        break
                 page.wait_for_timeout(500)
         finally:
             try:
@@ -85,6 +112,25 @@ def _run_blocking_crawl(origem, destino, data, adultos):
                 page_text = page.locator("body").inner_text()[:1500]
             except Exception as error:
                 logger.debug("Smiles: não foi possível ler a página final: %s", error)
+
+    return captured, state["responses"], matching_urls, page_title, page_text
+
+
+def _run_blocking_crawl(origem, destino, data, adultos):
+    url = build_url(origem, destino, data, adultos)
+    logger.info("Smiles: iniciando busca em %s", url)
+
+    # A API da Smiles às vezes recusa a sessão ("Something went wrong", sem voos).
+    # Recarregar a mesma página não adianta; um navegador novo costuma passar.
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        if attempt > 1:
+            logger.info("Smiles: tentando de novo com um navegador novo (tentativa %s)", attempt)
+            time.sleep(RETRY_DELAY_S)
+        captured, response_count, matching_urls, page_title, page_text = _capture_once(url)
+        if any(_flight_count(p) for p in captured):
+            break
+        if captured:
+            logger.warning("Smiles: resposta sem voos: %s", _summary(captured[-1]))
 
     logger.info(
         "Smiles: busca finalizada respostas=%s capturas=%s",
@@ -100,13 +146,7 @@ def _run_blocking_crawl(origem, destino, data, adultos):
             f"Nenhuma resposta de disponibilidade Smiles encontrada (respostas={response_count})"
         )
 
-    api_data = max(
-        captured,
-        key=lambda x: len(
-            x.get("requestedFlightSegmentList", [{}])[0]
-             .get("flightList", [])
-        ) if x.get("requestedFlightSegmentList") else 0
-    )
+    api_data = max(captured, key=_flight_count)
 
     flights = parse_flights(api_data)
     logger.info("Smiles: voos normalizados=%s", len(flights))
