@@ -7,10 +7,12 @@ Tudo roda em `192.168.1.40`:
 | Registry de imagens | `192.168.1.40:5050` |
 | Site (frontend) | http://192.168.1.40:3080 |
 | API | http://192.168.1.40:5000 |
-| Worker da Smiles | sem porta (consome `crawl.smiles`) |
+| Worker da Smiles (Camoufox) | desligado (0 réplicas); veja abaixo |
 
-Postgres e RabbitMQ continuam onde já estão. A ponte da Azul/LATAM
-(`crawler/run_bridge.py`) continua no seu PC, junto com o Chrome e a extensão.
+Postgres e RabbitMQ continuam onde já estão. A ponte (`crawler/run_bridge.py`)
+continua no seu PC, junto com o Chrome e a extensão, e atende Smiles, Azul e LATAM.
+O worker Camoufox da Smiles fica na stack com 0 réplicas: a Smiles passou a pedir
+uma validação de segurança a ele. Para religá-lo, veja o comentário na stack.
 
 ## 1. Liberar o registry sem HTTPS (uma vez)
 
@@ -63,8 +65,9 @@ Para voltar a uma versão anterior, troque `:latest` pela tag da versão no stac
 
 ## Observações
 
-- Quando o worker da Smiles estiver no swarm, pare o que roda no seu PC
-  (`python run_worker.py`); os dois podem coexistir, mas dividem a fila.
+- Só um consumidor por fila: a ponte e o worker Camoufox não devem ouvir
+  `crawl.smiles` ao mesmo tempo, nem dois workers (cuidado com container antigo
+  de um deploy que falhou).
 - A imagem do worker baixa o navegador do Camoufox no build (~1,3 GB).
 - As imagens são `linux/amd64`. Se algum nó do swarm for ARM, é preciso gerar
   com `docker buildx` para as duas arquiteturas.

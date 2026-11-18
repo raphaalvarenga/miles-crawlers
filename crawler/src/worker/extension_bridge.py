@@ -1,4 +1,4 @@
-"""Ponte entre a fila crawl.<provider> e a extensão Chrome "Miles Fetcher".
+"""Ponte entre a fila crawl.<provider> e a extensão Chrome "Milheirinho Coletor".
 
 O consumer continua igual: para os providers da ponte, a função de crawl em vez de
 abrir um navegador headless entrega o job à extensão e espera o JSON cru que a
@@ -6,7 +6,7 @@ página da companhia recebeu. O parse e as gravações no Postgres seguem no Pyt
 
 HTTP (Bearer token em tudo, menos /health):
     GET  /health                       estado da ponte e da extensão
-    GET  /jobs/next?provider=azul|latam&wait=20   long-poll: 200 com o job ou 204
+    GET  /jobs/next?provider=azul|latam|smiles&wait=20   long-poll: 200 com o job ou 204
     POST /jobs/{id}/result   {"url", "payload"}   JSON da API de disponibilidade
     POST /jobs/{id}/failed   {"error"}
     POST /jobs/{id}/blocked  {"url"}               verificação anti-bot na aba
@@ -28,6 +28,8 @@ from worker.tudoazul_parser import AVAILABILITY_URL_FRAGMENT, build_url as azul_
 from worker.tudoazul_parser import parse_tudoazul_flights
 from worker.latam_parser import REDEMPTION_URL_FRAGMENT, build_url as latam_build_url
 from worker.latam_parser import parse_latam_flights
+from worker.smiles_parser import AVAILABILITY_URL_FRAGMENT as SMILES_URL_FRAGMENT
+from worker.smiles_parser import build_url as smiles_build_url, parse_smiles_flights
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ class ProviderSpec:
 PROVIDERS: dict[str, ProviderSpec] = {
     "azul": ProviderSpec(azul_build_url, AVAILABILITY_URL_FRAGMENT, parse_tudoazul_flights),
     "latam": ProviderSpec(latam_build_url, REDEMPTION_URL_FRAGMENT, parse_latam_flights),
+    "smiles": ProviderSpec(smiles_build_url, SMILES_URL_FRAGMENT, parse_smiles_flights),
 }
 
 

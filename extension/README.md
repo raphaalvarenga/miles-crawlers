@@ -1,9 +1,10 @@
 # Milheirinho Coletor — extensão Chrome
 
-Busca a disponibilidade em pontos/milhas da Azul e da LATAM a partir de um Chrome real, onde o anti-bot deixa passar, e devolve o JSON da API ao pipeline que já existe.
+Busca a disponibilidade em pontos/milhas da Smiles, da Azul e da LATAM a partir de um Chrome real, onde o anti-bot deixa passar, e devolve o JSON da API ao pipeline que já existe.
 
 ```
-miles-api ──► RabbitMQ crawl.azul  ─┐
+miles-api ──► RabbitMQ crawl.smiles ─┐
+              RabbitMQ crawl.azul  ─┤
               RabbitMQ crawl.latam ─┴─► run_bridge.py (consumer + HTTP 127.0.0.1:8765)
                                            ▲  GET  /jobs/next?provider=…  (long-poll)
                                            │  POST /jobs/{id}/result      (JSON da API)
@@ -13,6 +14,7 @@ miles-api ──► RabbitMQ crawl.azul  ─┐
                         hook.js lê a resposta da API de disponibilidade:
                           Azul:  .../tudoazul/reservation/availability/v6/availability
                           LATAM: .../bff/air-offers/v2/offers/search/redemption
+                          Smiles: .../v1/airlines/search?
 ```
 
 O parse (`tudoazul_parser.py`, `latam_parser.py`) e as gravações em `fare_snapshots`, `crawl_jobs` e `search_request_providers` continuam no Python. A API e o frontend não mudam.

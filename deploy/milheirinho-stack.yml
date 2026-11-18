@@ -47,8 +47,11 @@ services:
       # RABBIT_URL: "amqp://admin:...@192.168.1.40"
       # DATABASE_URL: "postgresql://postgres:...@192.168.1.40:5432/milesdb"
     deploy:
-      # Cada busca abre um Firefox (Camoufox); 1 réplica já processa a fila em ordem.
-      replicas: 1
+      # Desligado: a Smiles passou a pedir "Validação de segurança" ao Camoufox, e a
+      # fila crawl.smiles agora é atendida pela ponte + extensão no Chrome (run_bridge.py).
+      # Para voltar a usar o Camoufox, troque para 1 e rode a ponte com
+      # BRIDGE_QUEUES=crawl.azul,crawl.latam (as duas não podem dividir a fila).
+      replicas: 0
       resources:
         limits:
           memory: 2G

@@ -1,14 +1,15 @@
-"""Worker das filas crawl.azul e crawl.latam que delega a busca à extensão Chrome (Miles Fetcher).
+"""Worker das filas crawl.smiles, crawl.azul e crawl.latam que delega a busca à extensão Chrome (Milheirinho Coletor).
 
 Rode na mesma máquina do Chrome com a extensão:
 
     set BRIDGE_TOKEN=<o mesmo token configurado na extensão>
-    python run_bridge.py                    # consome crawl.azul e crawl.latam e grava no Postgres
+    python run_bridge.py                    # consome crawl.smiles, crawl.azul e crawl.latam e grava no Postgres
 
 Teste sem RabbitMQ nem Postgres (só ponte + extensão):
 
     python run_bridge.py --once GIG MAD 2026-12-26
     python run_bridge.py --once MAD GIG 2026-12-25 --provider latam
+    python run_bridge.py --once SDU CGH 2026-12-01 --provider smiles
 
 Variáveis: BRIDGE_TOKEN (obrigatória), BRIDGE_HOST (127.0.0.1), BRIDGE_PORT (8765),
 BRIDGE_CLAIM_TIMEOUT_S (60), BRIDGE_JOB_TIMEOUT_S (90), BRIDGE_QUEUES (padrão

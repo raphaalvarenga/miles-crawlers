@@ -9,6 +9,7 @@
   const FRAGMENTS = [
     "/tudoazul/reservation/availability/",          // Azul (tudoazul_parser.py)
     "/bff/air-offers/v2/offers/search/redemption",  // LATAM (latam_parser.py)
+    "/v1/airlines/search?",                         // Smiles (smiles_parser.py)
   ];
   const TAG = "miles-fetcher";
 

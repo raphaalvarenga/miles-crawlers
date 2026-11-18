@@ -5,6 +5,7 @@ import logging
 from camoufox.sync_api import Camoufox
 from typing import Tuple, Optional
 from worker.utils import parse_flights
+from worker.smiles_parser import build_url  # noqa: F401  (usado abaixo; compartilhado com a ponte)
 
 
 logger = logging.getLogger(__name__)
@@ -38,24 +39,6 @@ def _summary(payload) -> str:
     info["chaves"] = sorted(payload)[:12]
     return json.dumps(info, ensure_ascii=False, default=str)
 
-def build_url(origem, destino, data, adultos):
-    from datetime import datetime
-
-    dt = datetime.strptime(data, "%Y-%m-%d")
-    ts = int(dt.timestamp()) * 1000
-
-    return (
-        f"https://www.smiles.com.br/mfe/emissao-passagem"
-        f"?tripType=2&originAirport={origem}"
-        f"&destinationAirport={destino}"
-        f"&departureDate={ts}"
-        f"&adults={adultos}"
-        f"&children=0"
-        f"&infants=0"
-        f"&searchType=g3"
-        f"&segments=1"
-        f"&cabin=ALL"
-    )
 
 def _capture_once(url):
     """Abre um navegador novo, carrega a busca e devolve as respostas de disponibilidade."""

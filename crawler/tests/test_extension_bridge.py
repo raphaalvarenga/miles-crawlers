@@ -93,6 +93,6 @@ def test_requires_token_and_health_is_public():
         async with http.get("/jobs/next?provider=azul&wait=0", headers={"Authorization": "Bearer errado"}) as r:
             assert r.status == 401
         async with http.get("/health") as r:
-            assert r.status == 200 and (await r.json())["providers"] == ["azul", "latam"]
+            assert r.status == 200 and (await r.json())["providers"] == ["azul", "latam", "smiles"]
 
     asyncio.run(with_bridge(scenario))

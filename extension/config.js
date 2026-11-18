@@ -4,7 +4,7 @@ export const DEFAULT_SETTINGS = {
   enabled: true,
   bridgeUrl: "http://127.0.0.1:8765",
   token: "",
-  providers: ["azul", "latam"],
+  providers: ["smiles", "azul", "latam"],
   delayMinS: 8,     // intervalo aleatório entre buscas da mesma companhia
   delayMaxS: 20,
   maxPerHour: 60,   // teto de páginas abertas por hora
@@ -13,6 +13,11 @@ export const DEFAULT_SETTINGS = {
 
 // Por provider: de onde a URL do job pode vir e quanto esperar a resposta.
 export const PROVIDERS = {
+  smiles: {
+    label: "Smiles",
+    allowedHosts: ["www.smiles.com.br"],
+    pageTimeoutMs: 60_000,
+  },
   azul: {
     label: "Azul (TudoAzul)",
     allowedHosts: ["www.voeazul.com.br"],
