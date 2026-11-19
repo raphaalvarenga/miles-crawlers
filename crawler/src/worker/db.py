@@ -27,6 +27,18 @@ async def mark_job_running(job_id: str):
             job_id,
         )
 
+async def mark_job_queued(job_id: str):
+    """O job voltou para a fila do RabbitMQ sem ter sido feito (ex.: nenhuma extensão o pegou)."""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE crawl_jobs
+            SET "Status" = 'queued', "StartedAt" = NULL
+            WHERE "Id" = $1
+            """,
+            job_id,
+        )
+
 async def mark_job_done(job_id: str, provider: str):
     async with pool.acquire() as conn:
         await conn.execute(

@@ -11,7 +11,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from worker.extension_bridge import BridgeError, ExtensionBridge  # noqa: E402
+from worker.errors import RequeueJob  # noqa: E402
+from worker.extension_bridge import BridgeError, ExtensionBridge, JobNotClaimed  # noqa: E402
 
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures" / "azul_availability_v6_GIG_MAD.json").read_text(encoding="utf-8")
@@ -84,6 +85,35 @@ def test_unclaimed_job_times_out_and_is_not_handed_out_later():
             assert r.status == 204
 
     asyncio.run(with_bridge(scenario, claim_timeout_s=0.2))
+
+
+def test_unclaimed_job_asks_to_go_back_to_the_queue():
+    async def scenario(bridge, http):
+        with pytest.raises(RequeueJob):
+            await bridge.crawl("azul", "GIG", "MAD", "2026-12-26")
+
+    asyncio.run(with_bridge(scenario, claim_timeout_s=0.2))
+
+
+def test_unclaimed_job_fails_when_requeue_is_off():
+    async def scenario(bridge, http):
+        with pytest.raises(BridgeError) as info:
+            await bridge.crawl("azul", "GIG", "MAD", "2026-12-26")
+        assert not isinstance(info.value, RequeueJob)
+
+    asyncio.run(with_bridge(scenario, claim_timeout_s=0.2, requeue_unclaimed=False))
+
+
+def test_claimed_job_that_times_out_is_a_failure_not_a_requeue():
+    async def scenario(bridge, http):
+        crawl = asyncio.create_task(bridge.crawl("azul", "GIG", "MAD", "2026-12-26"))
+        async with http.get("/jobs/next?provider=azul&wait=2", headers=AUTH) as r:
+            assert r.status == 200
+        with pytest.raises(BridgeError) as info:
+            await crawl
+        assert not isinstance(info.value, JobNotClaimed)
+
+    asyncio.run(with_bridge(scenario, claim_timeout_s=0.3, job_timeout_s=0.3))
 
 
 def test_requires_token_and_health_is_public():

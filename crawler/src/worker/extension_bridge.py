@@ -24,6 +24,8 @@ from typing import Callable, Optional
 
 from aiohttp import web
 
+from worker.errors import RequeueJob
+
 from worker.tudoazul_parser import AVAILABILITY_URL_FRAGMENT, build_url as azul_build_url
 from worker.tudoazul_parser import parse_tudoazul_flights
 from worker.latam_parser import REDEMPTION_URL_FRAGMENT, build_url as latam_build_url
@@ -54,6 +56,10 @@ class BridgeError(RuntimeError):
     """O job não voltou da extensão com uma resposta utilizável."""
 
 
+class JobNotClaimed(BridgeError, RequeueJob):
+    """Nenhuma extensão pegou o job a tempo: ele volta para a fila do RabbitMQ."""
+
+
 @dataclass
 class BridgeJob:
     id: str
@@ -72,6 +78,7 @@ class ExtensionBridge:
         claim_timeout_s: float = 60,
         job_timeout_s: float = 90,
         poll_wait_s: float = 20,
+        requeue_unclaimed: bool = True,
     ):
         if not token:
             raise ValueError("BRIDGE_TOKEN é obrigatório")
@@ -79,6 +86,7 @@ class ExtensionBridge:
         self.claim_timeout_s = claim_timeout_s
         self.job_timeout_s = job_timeout_s
         self.poll_wait_s = poll_wait_s
+        self.requeue_unclaimed = requeue_unclaimed
         self._queues: dict[str, asyncio.Queue] = {}
         self._jobs: dict[str, BridgeJob] = {}
         self._seq = itertools.count(1)
@@ -126,10 +134,9 @@ class ExtensionBridge:
             return await asyncio.wait_for(asyncio.shield(job.future), self.claim_timeout_s)
         except asyncio.TimeoutError:
             if job.claimed_at is None:
-                raise BridgeError(
-                    f"nenhuma extensão pegou o job em {self.claim_timeout_s:.0f} s "
-                    "(o Chrome com a extensão está aberto?)"
-                ) from None
+                message = (f"nenhuma extensão pegou o job em {self.claim_timeout_s:.0f} s "
+                           "(o Chrome com a extensão está aberto?)")
+                raise (JobNotClaimed if self.requeue_unclaimed else BridgeError)(message) from None
         remaining = job.claimed_at + self.job_timeout_s - time.time()
         try:
             return await asyncio.wait_for(asyncio.shield(job.future), max(remaining, 1))

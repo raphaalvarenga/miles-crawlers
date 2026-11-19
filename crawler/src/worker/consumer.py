@@ -14,11 +14,13 @@ from worker.db import (
     get_job_search_id,
     mark_search_request_provider_done,
     mark_job_running,
+    mark_job_queued,
     mark_search_request_provider_failed,
     insert_fare_snapshot,
     db_now,
     delete_stale_fare_snapshots,
 )
+from worker.errors import RequeueJob
 from worker.utils import flight_to_snapshot
 
 logger = logging.getLogger(__name__)
@@ -63,7 +65,8 @@ async def handle_message(message: IncomingMessage):
     job_id = None
     search_id = None
     provider = "smiles"
-    async with message.process(requeue=False):
+    # ignore_processed: quando o job volta para a fila, o nack é feito aqui dentro.
+    async with message.process(requeue=False, ignore_processed=True):
         try:
             payload = json.loads(message.body)
             job_id = payload.get("job_id")
@@ -120,6 +123,14 @@ async def handle_message(message: IncomingMessage):
             else:
                 logger.warning("Job %s concluído sem SearchId; provider permanecerá sem atualização", job_id)
             await mark_job_done(job_id, provider)
+        except RequeueJob as error:
+            logger.warning("Job %s volta para a fila: %s", job_id, error)
+            if job_id is not None:
+                try:
+                    await mark_job_queued(job_id)
+                except Exception:
+                    logger.exception("Não foi possível marcar o crawl job %s como queued", job_id)
+            await message.nack(requeue=True)
         except Exception as error:
             logger.exception("Erro ao processar job %s", job_id)
 

@@ -12,7 +12,8 @@ Teste sem RabbitMQ nem Postgres (só ponte + extensão):
     python run_bridge.py --once SDU CGH 2026-12-01 --provider smiles
 
 Variáveis: BRIDGE_TOKEN (obrigatória), BRIDGE_HOST (127.0.0.1), BRIDGE_PORT (8765),
-BRIDGE_CLAIM_TIMEOUT_S (60), BRIDGE_JOB_TIMEOUT_S (90), BRIDGE_QUEUES (padrão
+BRIDGE_CLAIM_TIMEOUT_S (60: job que nenhuma extensão pegar nesse tempo volta para a fila
+do RabbitMQ; com BRIDGE_REQUEUE_UNCLAIMED=0 ele falha), BRIDGE_JOB_TIMEOUT_S (90), BRIDGE_QUEUES (padrão
 crawl.<provider> para cada provider da ponte, separadas por vírgula), além de
 RABBIT_URL e DATABASE_URL do worker normal.
 """
@@ -38,6 +39,7 @@ def build_bridge() -> ExtensionBridge:
         token=token,
         claim_timeout_s=float(os.getenv("BRIDGE_CLAIM_TIMEOUT_S", "60")),
         job_timeout_s=float(os.getenv("BRIDGE_JOB_TIMEOUT_S", "90")),
+        requeue_unclaimed=os.getenv("BRIDGE_REQUEUE_UNCLAIMED", "1") != "0",
     )
 
 
