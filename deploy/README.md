@@ -57,7 +57,9 @@ gere o frontend de novo.
 
 1. No Portainer: **Registries > Add registry > Custom registry**, URL `192.168.1.40:5050`, sem autenticação.
 2. **Stacks > Add stack**, nome `milheirinho`, cole [`milheirinho-stack.yml`](milheirinho-stack.yml).
-3. Em **Environment variables**, adicione `BRIDGE_TOKEN` com o token da extensão, e faça o deploy.
+3. Em **Environment variables**, adicione `BRIDGE_TOKEN` com o token da extensão e, se tiver
+   mais de uma extensão ligada (outro Chrome, Brave ou perfil), `PREFETCH_COUNT` com o número
+   delas (padrão 1). Faça o deploy.
 
 ## Atualizar depois de mudar o código
 
