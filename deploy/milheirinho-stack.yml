@@ -4,8 +4,11 @@
 # Postgres e RabbitMQ continuam onde já estão (192.168.1.40); os endereços
 # padrão já vêm nas imagens (appsettings.json da API e config.py do worker).
 #
-# A ponte da Azul/LATAM não entra aqui: ela depende da extensão no seu Chrome
-# e continua rodando no seu PC (crawler/run_bridge.py).
+# A ponte (bridge) consome as filas crawl.smiles/azul/latam e entrega os jobs à
+# extensão Chrome por HTTP na porta 8765. Na extensão, use http://192.168.1.40:8765.
+# Defina BRIDGE_TOKEN nas variáveis de ambiente do stack no Portainer (o mesmo token
+# das opções da extensão). Não rode a ponte local ao mesmo tempo: as duas dividiriam
+# as filas e metade dos jobs iria para uma ponte sem extensão.
 
 version: "3.8"
 
@@ -35,6 +38,25 @@ services:
         published: 3080
         protocol: tcp
     deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+
+  bridge:
+    image: 192.168.1.40:5050/miles-bridge:latest
+    ports:
+      - target: 8765
+        published: 8765
+        protocol: tcp
+    environment:
+      BRIDGE_TOKEN: ${BRIDGE_TOKEN}
+      # Tempo para uma extensão pegar o job, e para devolver o resultado:
+      # BRIDGE_CLAIM_TIMEOUT_S: "60"
+      # BRIDGE_JOB_TIMEOUT_S: "90"
+      # RABBIT_URL: "amqp://admin:...@192.168.1.40"
+      # DATABASE_URL: "postgresql://postgres:...@192.168.1.40:5432/milesdb"
+    deploy:
+      # Uma réplica só: os jobs ficam na memória da ponte enquanto a extensão os busca.
       replicas: 1
       restart_policy:
         condition: any

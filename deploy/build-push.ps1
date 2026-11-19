@@ -18,8 +18,8 @@ param(
     [string]$Registry = "192.168.1.40:5050",
     [string]$ApiUrl = "http://192.168.1.40:5000",
     [string]$Tag = (Get-Date -Format "yyyyMMdd-HHmm"),
-    [ValidateSet("api", "frontend", "smiles-worker")]
-    [string[]]$Only = @("api", "frontend", "smiles-worker"),
+    [ValidateSet("api", "frontend", "smiles-worker", "bridge")]
+    [string[]]$Only = @("api", "frontend", "smiles-worker", "bridge"),
     [switch]$NoPush
 )
 
@@ -32,7 +32,9 @@ $images = @(
     @{ Key = "frontend"; Name = "milheirinho-frontend"; Context = Join-Path $projects "miles-frontend";
        Args = @("--build-arg", "NEXT_PUBLIC_API_BASE_URL=$ApiUrl") },
     @{ Key = "smiles-worker"; Name = "miles-smiles-worker"; Context = $crawlers;
-       Args = @("-f", (Join-Path $crawlers "crawler\Dockerfile")) }
+       Args = @("-f", (Join-Path $crawlers "crawler\Dockerfile")) },
+    @{ Key = "bridge"; Name = "miles-bridge"; Context = $crawlers;
+       Args = @("-f", (Join-Path $crawlers "crawler\Dockerfile.bridge")) }
 )
 
 function Invoke-Docker {

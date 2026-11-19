@@ -9,8 +9,10 @@ Tudo roda em `192.168.1.40`:
 | API | http://192.168.1.40:5000 |
 | Worker da Smiles (Camoufox) | desligado (0 réplicas); veja abaixo |
 
-Postgres e RabbitMQ continuam onde já estão. A ponte (`crawler/run_bridge.py`)
-continua no seu PC, junto com o Chrome e a extensão, e atende Smiles, Azul e LATAM.
+Postgres e RabbitMQ continuam onde já estão. A ponte da extensão (`bridge`) roda na
+stack, na porta 8765, e atende Smiles, Azul e LATAM; a extensão no seu Chrome aponta
+para `http://192.168.1.40:8765`. Defina `BRIDGE_TOKEN` nas variáveis de ambiente da
+stack no Portainer (o mesmo token das opções da extensão).
 O worker Camoufox da Smiles fica na stack com 0 réplicas: a Smiles passou a pedir
 uma validação de segurança a ele. Para religá-lo, veja o comentário na stack.
 
@@ -43,7 +45,7 @@ No PowerShell, na pasta `miles-crawlers`:
 .\deploy\build-push.ps1
 ```
 
-Gera `miles-api`, `milheirinho-frontend` e `miles-smiles-worker`, cada uma com
+Gera `miles-api`, `milheirinho-frontend`, `miles-smiles-worker` e `miles-bridge`, cada uma com
 a tag da versão (data e hora) e `latest`. Para gerar só algumas:
 `.\deploy\build-push.ps1 -Only api,frontend`.
 
@@ -54,7 +56,8 @@ gere o frontend de novo.
 ## 4. Subir o Milheirinho
 
 1. No Portainer: **Registries > Add registry > Custom registry**, URL `192.168.1.40:5050`, sem autenticação.
-2. **Stacks > Add stack**, nome `milheirinho`, cole [`milheirinho-stack.yml`](milheirinho-stack.yml) e faça o deploy.
+2. **Stacks > Add stack**, nome `milheirinho`, cole [`milheirinho-stack.yml`](milheirinho-stack.yml).
+3. Em **Environment variables**, adicione `BRIDGE_TOKEN` com o token da extensão, e faça o deploy.
 
 ## Atualizar depois de mudar o código
 
@@ -65,6 +68,8 @@ Para voltar a uma versão anterior, troque `:latest` pela tag da versão no stac
 
 ## Observações
 
+- Só uma ponte: com a do homelab no ar, não rode `run_bridge.py` no PC (as duas
+  dividiriam as filas e metade dos jobs iria para a ponte sem extensão).
 - Só um consumidor por fila: a ponte e o worker Camoufox não devem ouvir
   `crawl.smiles` ao mesmo tempo, nem dois workers (cuidado com container antigo
   de um deploy que falhou).

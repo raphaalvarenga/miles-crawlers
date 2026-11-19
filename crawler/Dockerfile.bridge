@@ -1,0 +1,18 @@
+# Ponte da extensão Chrome (run_bridge.py): consome crawl.smiles/azul/latam e entrega os jobs
+# à extensão por HTTP. Sem navegador: quem abre os sites é o Chrome com a extensão.
+# Contexto do build: a raiz do repositório.
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src:/app \
+    BRIDGE_HOST=0.0.0.0 \
+    BRIDGE_PORT=8765
+
+WORKDIR /app
+COPY crawler/requirements-bridge.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY crawler/ /app
+
+EXPOSE 8765
+CMD ["python", "run_bridge.py"]

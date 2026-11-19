@@ -66,7 +66,7 @@ function setError(message) {
 // ── Ponte ─────────────────────────────────────────────────────────────────
 async function bridge(settings, method, path, body) {
   if (!bridgeUrlAllowed(settings.bridgeUrl)) {
-    throw new Error("URL da ponte recusada: use https (http só em 127.0.0.1/localhost)");
+    throw new Error("URL da ponte recusada: use https (http só em 127.0.0.1/localhost ou IP da rede local)");
   }
   const response = await fetch(settings.bridgeUrl.replace(/\/+$/, "") + path, {
     method,

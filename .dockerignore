@@ -10,3 +10,4 @@ deploy
 **/.pytest_cache
 **/*.pyc
 crawler/tests
+milheirinho-ad

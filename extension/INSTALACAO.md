@@ -8,8 +8,15 @@ para o Milheirinho. São duas peças, que rodam juntas na mesma máquina:
 | **Ponte** (`crawler/run_bridge.py`) | Pega os jobs das filas `crawl.smiles`, `crawl.azul` e `crawl.latam` no RabbitMQ, entrega à extensão e grava o resultado no Postgres. |
 | **Extensão** (pasta `extension/`) | Abre a busca da companhia numa aba do Chrome, lê a resposta do site e devolve à ponte. |
 
-A extensão só conversa com a ponte em `http://127.0.0.1:8765`, ou seja, na própria
-máquina. Quem fala com o RabbitMQ e o Postgres do homelab é a ponte.
+A ponte pode rodar em dois lugares:
+
+- **No homelab (recomendado):** ela já vem na stack do Portainer (serviço `bridge`,
+  porta 8765). Na extensão, use `http://192.168.1.40:8765` e pule o passo 3.
+- **No seu PC:** `python run_bridge.py` (passo 3). Na extensão, use `http://127.0.0.1:8765`.
+
+Use um lugar só: duas pontes dividiriam as filas. Em `http`, a extensão só aceita
+`127.0.0.1`, `localhost` ou um IP de rede local (10.x, 172.16–31.x, 192.168.x); um
+endereço público precisa de `https`. Quem fala com o RabbitMQ e o Postgres é a ponte.
 
 ```
 API ─► RabbitMQ (crawl.smiles / azul / latam) ─► ponte ◄──► extensão no Chrome ─► site do programa
@@ -46,7 +53,7 @@ python -c "import secrets; print(secrets.token_urlsafe(24))"
 
 Copie o valor sem aspas e sem espaços.
 
-## 3. Rodar a ponte
+## 3. Rodar a ponte (só se ela não estiver no homelab)
 
 Ainda na pasta `crawler`:
 
@@ -85,7 +92,7 @@ Na página de opções:
 | Campo | Valor |
 |---|---|
 | **Ligado** | marcado |
-| **URL da ponte** | `http://127.0.0.1:8765` |
+| **URL da ponte** | `http://192.168.1.40:8765` (homelab) ou `http://127.0.0.1:8765` (PC). Num endereço que não seja `127.0.0.1`/`localhost`, o Chrome pede para liberar o acesso ao clicar em **Salvar**: aceite. |
 | **Token** | o mesmo do passo 2 |
 | **Companhias** | Smiles, Azul e/ou LATAM |
 | **Intervalo mín./máx.** | 8 e 20 s (padrão): espera aleatória entre buscas da mesma companhia |
@@ -142,8 +149,8 @@ no homelab, tire a Smiles da ponte assim.
 |---|---|---|
 | Terminal da ponte mostra `GET /jobs/next ... 401` | Token diferente nos dois lados | Rode `"[$env:BRIDGE_TOKEN]"` no terminal da ponte: aspas ou espaços aparecem entre os colchetes. Acerte, reinicie a ponte e salve o mesmo valor na extensão. |
 | `Defina BRIDGE_TOKEN` ao iniciar a ponte | Variável não definida neste terminal | Defina o token (passo 3) no mesmo PowerShell em que roda a ponte. |
-| **Testar ponte** falha | Ponte parada ou URL errada | Confira se a janela da ponte está aberta e se a URL é `http://127.0.0.1:8765`. |
-| "URL da ponte recusada" | URL com outro endereço em `http` | A extensão só aceita `http` em `127.0.0.1`/`localhost`; outro endereço precisa de `https`. |
+| **Testar ponte** falha | Ponte parada, URL errada ou acesso negado | No homelab, veja se o serviço `bridge` está rodando no Portainer; no PC, se a janela da ponte está aberta. Se você recusou o acesso ao endereço, clique em **Salvar** de novo e aceite. |
+| "URL da ponte recusada" | `http` num endereço público | Em `http` a extensão só aceita `127.0.0.1`, `localhost` ou IP de rede local; outro endereço precisa de `https`. |
 | Ponte com `O computador remoto recusou a conexão` | Sem acesso ao RabbitMQ do homelab | Confira a rede (ou a VPN) e se o RabbitMQ está no ar em `192.168.1.40`. |
 | Busca fica em "buscando" e nenhuma aba abre | Extensão desligada, companhia desmarcada ou pausada | Veja o quadro **Estado** nas opções; marque **Ligado** e a companhia, ou clique em **Retomar**. |
 | A aba abre e fecha, mas nada aparece no site | Página demorou mais que 60 s ou mudou | Veja o erro no terminal da ponte e o job em `crawl_jobs` (coluna `Error`). |

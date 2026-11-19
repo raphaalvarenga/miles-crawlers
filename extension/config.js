@@ -39,14 +39,32 @@ export async function saveSettings(settings) {
   await chrome.storage.local.set({ settings });
 }
 
-// A ponte só em https, ou http na própria máquina.
+// http só na própria máquina ou num IP de rede local (10/8, 172.16/12, 192.168/16): o token vai sem
+// criptografia, então nunca por um endereço público.
+export function isLocalHost(hostname) {
+  if (["127.0.0.1", "localhost"].includes(hostname)) return true;
+  const m = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return false;
+  const [a, b, c, d] = m.slice(1).map(Number);
+  if ([a, b, c, d].some((n) => n > 255)) return false;
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+// A ponte só em https, ou http na máquina / na rede local.
 export function bridgeUrlAllowed(url) {
   try {
     const u = new URL(url);
-    return u.protocol === "https:" || (u.protocol === "http:" && ["127.0.0.1", "localhost"].includes(u.hostname));
+    return u.protocol === "https:" || (u.protocol === "http:" && isLocalHost(u.hostname));
   } catch {
     return false;
   }
+}
+
+// Padrão de permissão do Chrome para o endereço da ponte (sem porta: o padrão vale para todas).
+// 127.0.0.1 e localhost já vêm no manifesto; os outros entram como permissão opcional.
+export function bridgeOriginPattern(url) {
+  const u = new URL(url);
+  return `${u.protocol}//${u.hostname}/*`;
 }
 
 // A extensão só abre URLs https do site do provider do job.

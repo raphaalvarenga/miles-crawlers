@@ -1,4 +1,6 @@
-import { DEFAULT_SETTINGS, PROVIDERS, bridgeUrlAllowed, loadSettings, saveSettings } from "./config.js";
+import {
+  DEFAULT_SETTINGS, PROVIDERS, bridgeOriginPattern, bridgeUrlAllowed, loadSettings, saveSettings,
+} from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 const say = (text) => {
@@ -31,7 +33,18 @@ async function fill() {
 
 async function save() {
   const bridgeUrl = $("bridgeUrl").value.trim() || DEFAULT_SETTINGS.bridgeUrl;
-  if (!bridgeUrlAllowed(bridgeUrl)) return say("URL recusada: https, ou http só em 127.0.0.1/localhost.");
+  if (!bridgeUrlAllowed(bridgeUrl)) return say("URL recusada: https, ou http só em 127.0.0.1/localhost ou IP da rede local.");
+  // Ponte fora desta máquina (ex.: homelab): o Chrome pede para liberar o endereço. Precisa vir do clique em Salvar.
+  const origins = [bridgeOriginPattern(bridgeUrl)];
+  if (!(await chrome.permissions.contains({ origins }))) {
+    let granted = false;
+    try {
+      granted = await chrome.permissions.request({ origins });
+    } catch (e) {
+      return say(`Não deu para pedir acesso a ${origins[0]}: ${e.message}`);
+    }
+    if (!granted) return say(`Sem acesso a ${origins[0]} a extensão não fala com a ponte. Nada foi salvo.`);
+  }
   const num = (id, fallback) => {
     const v = Number($(id).value);
     return Number.isFinite(v) && v >= 0 ? v : fallback;
