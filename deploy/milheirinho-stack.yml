@@ -55,7 +55,7 @@ services:
       # paradas; acima do número de extensões, o job que ninguém pegar volta para a fila.
       PREFETCH_COUNT: ${PREFETCH_COUNT:-1}
       # Job que nenhuma extensão pegar em BRIDGE_CLAIM_TIMEOUT_S volta para a fila do RabbitMQ
-      # (até expirar pelo TTL da API, 5 min). Com BRIDGE_REQUEUE_UNCLAIMED=0 ele falha na hora.
+      # (até expirar pelo TTL da API, 30 min). Com BRIDGE_REQUEUE_UNCLAIMED=0 ele falha na hora.
       # BRIDGE_REQUEUE_UNCLAIMED: "1"
       # Tempo para uma extensão pegar o job, e para devolver o resultado:
       # BRIDGE_CLAIM_TIMEOUT_S: "60"
