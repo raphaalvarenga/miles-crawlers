@@ -21,9 +21,24 @@
     /eu sou humano/i,
   ];
 
-  function isBlocked() {
-    const text = `${document.title}\n${(document.body && document.body.innerText) || ""}`;
-    return BLOCK_PATTERNS.some((re) => re.test(text.slice(0, 4000)));
+  // Erro do próprio site, sem verificação para resolver: a busca não vai sair.
+  // Azul: modal "Ops! Tivemos um problema · Infelizmente não foi possível concluir
+  // sua solicitação [...] tente novamente em alguns instantes." (aparece quando o
+  // site limita o acesso depois de muitas buscas seguidas).
+  const SITE_ERROR_PATTERNS = [
+    /tivemos um problema/i,
+    /n[ãa]o foi poss[íi]vel concluir sua solicita[çc][ãa]o/i,
+  ];
+
+  function pageText() {
+    return `${document.title}\n${(document.body && document.body.innerText) || ""}`.slice(0, 4000);
+  }
+
+  function pageState() {
+    const text = pageText();
+    if (BLOCK_PATTERNS.some((re) => re.test(text))) return "blocked";
+    if (SITE_ERROR_PATTERNS.some((re) => re.test(text))) return "site-error";
+    return "page-ok";
   }
 
   // Avisa o background a cada mudança de estado. A verificação pode aparecer depois
@@ -31,7 +46,7 @@
   // a página é conferida por alguns minutos, não só uma vez.
   let last = null;
   function report() {
-    const state = isBlocked() ? "blocked" : "page-ok";
+    const state = pageState();
     if (state === last) return;
     last = state;
     chrome.runtime.sendMessage({ type: state, url: location.href }).catch(() => {});

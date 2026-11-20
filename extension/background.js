@@ -17,6 +17,8 @@ import {
 const ALARM = "miles-tick";
 const RUNTIME_KEY = "runtime";
 const POLL_WAIT_S = 20; // < 30 s de ociosidade do service worker
+// Depois de um erro de limite do site (modal de erro ou HTTP 429), o programa espera isso.
+const SITE_ERROR_COOLDOWN_MS = 2 * 60 * 1000;
 
 const running = new Set(); // programas com laço ativo
 const waiters = new Map(); // tabId → { capture, resolve }
@@ -92,6 +94,9 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   } else if (message.type === "blocked" && waiter) {
     waiters.delete(tabId);
     waiter.resolve({ kind: "blocked", url: message.url });
+  } else if (message.type === "site-error" && waiter) {
+    waiters.delete(tabId);
+    waiter.resolve({ kind: "site-error", url: message.url });
   } else if (message.type === "page-ok") {
     resumeIfBlockedTab(tabId).catch(() => {});
   }
@@ -223,10 +228,17 @@ async function processJob(settings, job) {
         captured: `a API respondeu HTTP ${outcome.status}`,
         timeout: `a resposta de disponibilidade não chegou em ${PROVIDERS[job.provider].pageTimeoutMs / 1000} s`,
         closed: "a aba foi fechada antes da resposta",
+        "site-error": `o site mostrou "Tivemos um problema" (provável limite de acesso); ${job.provider} espera ${SITE_ERROR_COOLDOWN_MS / 60000} min`,
         error: outcome.message,
       }[outcome.kind] || outcome.kind;
+      // Site limitando (erro na página ou HTTP 429): dá um respiro só a esse programa.
+      const slowDown = outcome.kind === "site-error" || (outcome.kind === "captured" && outcome.status === 429);
       await finishJob(job, "failed", (runtime) => {
         runtime.lastError = { at: Date.now(), message: `job ${job.id}: ${message}` };
+        if (slowDown) {
+          runtime.nextAllowedAt[job.provider] = Math.max(
+            runtime.nextAllowedAt[job.provider] || 0, Date.now() + SITE_ERROR_COOLDOWN_MS);
+        }
       });
       await bridge(settings, "POST", `/jobs/${job.id}/failed`, { error: message }).catch(() => {});
     }
