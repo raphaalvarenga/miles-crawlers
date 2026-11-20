@@ -162,3 +162,28 @@ async def delete_stale_fare_snapshots(origin, destination, travel_date, provider
             crawled_since,
         )
     return int(result.split()[-1])
+
+
+async def insert_fare_price_history(rows: list[dict], crawled_at) -> int:
+    """Grava o resumo da coleta em fare_price_history (só insere, nunca atualiza)."""
+    if not rows:
+        return 0
+    async with pool.acquire() as conn:
+        await conn.executemany(
+            """
+            INSERT INTO fare_price_history(
+                "Origin", "Destination", "TravelDate", "Class", "Provider",
+                "MinMilesPrice", "TaxesCents", "Currency", "MinMilesPriceDirect",
+                "FlightsFound", "CrawledAt"
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            """,
+            [
+                (
+                    r["origin"], r["destination"], r["travel_date"], r["class"], r["provider"],
+                    r["min_miles_price"], r["taxes_cents"], r["currency"], r["min_miles_price_direct"],
+                    r["flights_found"], crawled_at,
+                )
+                for r in rows
+            ],
+        )
+    return len(rows)

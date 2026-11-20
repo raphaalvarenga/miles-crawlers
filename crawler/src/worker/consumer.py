@@ -19,9 +19,10 @@ from worker.db import (
     insert_fare_snapshot,
     db_now,
     delete_stale_fare_snapshots,
+    insert_fare_price_history,
 )
 from worker.errors import RequeueJob
-from worker.utils import flight_to_snapshot
+from worker.utils import flight_to_snapshot, summarize_price_history
 
 logger = logging.getLogger(__name__)
 
@@ -103,9 +104,16 @@ async def handle_message(message: IncomingMessage):
                 return
 
             crawled_since = await db_now()
-            for flight in flights:
-                snapshot = flight_to_snapshot(flight, travel_date, provider)
+            snapshots = [flight_to_snapshot(flight, travel_date, provider) for flight in flights]
+            for snapshot in snapshots:
                 await insert_fare_snapshot(snapshot)
+
+            # Histórico de preços: uma linha por cabine a cada coleta. Uma falha aqui
+            # (ex.: tabela ainda não criada pela migração da API) não derruba o job.
+            try:
+                await insert_fare_price_history(summarize_price_history(snapshots), crawled_since)
+            except Exception:
+                logger.exception("Job %s: não foi possível gravar o histórico de preços", job_id)
 
             # Só limpa quando o crawl trouxe voos: lista vazia pode ser falha da página.
             removed = await delete_stale_fare_snapshots(

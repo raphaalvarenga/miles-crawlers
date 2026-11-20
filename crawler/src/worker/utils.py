@@ -155,3 +155,42 @@ def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
         "carrier_code": flight.get("carrier_code", ""),
         "flight_number": flight.get("flight_number", ""),
     }
+
+
+def summarize_price_history(snapshots: list[dict]) -> list[dict]:
+    """Uma linha de histórico por rota/data/programa/cabine: o menor preço da coleta.
+
+    Recebe os snapshots já normalizados (flight_to_snapshot). Preço zero ou ausente
+    significa que a tarifa não veio e fica de fora do mínimo.
+    """
+    groups: dict[tuple, list[dict]] = {}
+    for s in snapshots:
+        key = (
+            str(s.get("origin") or "").upper(),
+            str(s.get("destination") or "").upper(),
+            s.get("travel_date"),
+            s.get("provider"),
+            s.get("class"),
+        )
+        groups.setdefault(key, []).append(s)
+
+    rows = []
+    for (origin, destination, travel_date, provider, cabin), items in groups.items():
+        priced = [s for s in items if (s.get("miles_price") or 0) > 0]
+        if not priced:
+            continue
+        cheapest = min(priced, key=lambda s: (s["miles_price"], s.get("taxes_cents") or 0))
+        direct = [s["miles_price"] for s in priced if s.get("direct_only")]
+        rows.append({
+            "origin": origin,
+            "destination": destination,
+            "travel_date": travel_date,
+            "provider": provider,
+            "class": cabin,
+            "min_miles_price": cheapest["miles_price"],
+            "taxes_cents": cheapest.get("taxes_cents") or 0,
+            "currency": cheapest.get("currency") or "BRL",
+            "min_miles_price_direct": min(direct) if direct else None,
+            "flights_found": len(items),
+        })
+    return rows
