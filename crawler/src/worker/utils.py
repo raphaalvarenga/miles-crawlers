@@ -39,6 +39,25 @@ def _flight_number(flight: dict) -> str:
     return ""
 
 
+def _fare_tax_cents(fare: dict) -> int | None:
+    """Taxa de embarque da tarifa, em centavos.
+
+    A Smiles manda a taxa num objeto com o código da companhia, ex.:
+    "g3": {"costTax": "62.14"}. Procura costTax em qualquer objeto da tarifa,
+    para servir também a outras companhias.
+    """
+    candidates = [fare.get("costTax")]
+    candidates += [v.get("costTax") for v in fare.values() if isinstance(v, dict)]
+    for value in candidates:
+        if value in (None, ""):
+            continue
+        try:
+            return round(float(str(value).replace(",", ".")) * 100)
+        except ValueError:
+            continue
+    return None
+
+
 def parse_flights(data: dict) -> list:
     """Parseia com a estrutura real da API Smiles."""
     results = []
@@ -56,6 +75,7 @@ def parse_flights(data: dict) -> list:
                 fares[fare.get("type")] = {
                     "milhas": fare.get("miles", 0),
                     "dinheiro": fare.get("money", 0),
+                    "taxa_centavos": _fare_tax_cents(fare),
                 }
 
             results.append({
@@ -77,8 +97,19 @@ def parse_flights(data: dict) -> list:
                 "smiles_milhas": fares.get("SMILES", {}).get("milhas"),
                 "smiles_club_milhas": fares.get("SMILES_CLUB", {}).get("milhas"),
                 "money_brl": fares.get("MONEY", {}).get("dinheiro"),
+                # Taxa da tarifa usada no preço em milhas (Smiles; senão Smiles Club).
+                "taxes_cents": _pick_tax(fares),
             })
     return results
+
+
+def _pick_tax(fares: dict) -> int:
+    for fare_type in ("SMILES", "SMILES_CLUB"):
+        tax = fares.get(fare_type, {}).get("taxa_centavos")
+        if tax is not None:
+            return tax
+    taxes = [f.get("taxa_centavos") for f in fares.values() if f.get("taxa_centavos") is not None]
+    return taxes[0] if taxes else 0
 
 
 def select_best_flight(flights: list) -> dict | None:
