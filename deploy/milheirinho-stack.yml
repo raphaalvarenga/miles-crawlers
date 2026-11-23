@@ -24,6 +24,11 @@ services:
       # Para trocar sem gerar imagem nova, descomente e ajuste:
       # ConnectionStrings__Postgres: "Host=192.168.1.40;Port=5432;Username=postgres;Password=...;Database=milesdb"
       # RabbitMq__Host: "192.168.1.40"
+      # Login: tokens do Supabase Auth, validados pelas chaves públicas do projeto.
+      # Supabase__Url: "https://xpaxvuxzvsnzleftmjby.supabase.co"
+      # Coleta de madrugada dos alertas: só enfileira se a extensão estiver conectada à ponte
+      # (lê o /health do serviço bridge desta stack). Vazio desliga a checagem.
+      # Alerts__Refresh__BridgeHealthUrl: "http://bridge:8765/health"
     deploy:
       replicas: 1
       restart_policy:
