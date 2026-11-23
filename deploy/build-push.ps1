@@ -16,7 +16,9 @@
 #>
 param(
     [string]$Registry = "192.168.1.40:5050",
-    [string]$ApiUrl = "http://192.168.1.40:5000",
+    # Endereço público da API, gravado no bundle do frontend: é o navegador do visitante
+    # que chama a API, então um endereço da rede local quebra o site para quem está fora.
+    [string]$ApiUrl = "https://api.milheirinho.com",
     [string]$Tag = (Get-Date -Format "yyyyMMdd-HHmm"),
     [ValidateSet("api", "frontend", "smiles-worker", "bridge")]
     [string[]]$Only = @("api", "frontend", "smiles-worker", "bridge"),

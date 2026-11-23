@@ -5,8 +5,8 @@ Tudo roda em `192.168.1.40`:
 | Serviço | Endereço |
 |---|---|
 | Registry de imagens | `192.168.1.40:5050` |
-| Site (frontend) | http://192.168.1.40:3080 |
-| API | http://192.168.1.40:5000 |
+| Site (frontend) | http://192.168.1.40:3080 (público: https://milheirinho.com) |
+| API | http://192.168.1.40:5000 (público: https://api.milheirinho.com) |
 | Worker da Smiles (Camoufox) | desligado (0 réplicas); veja abaixo |
 
 Postgres e RabbitMQ continuam onde já estão. A ponte da extensão (`bridge`) roda na
@@ -50,8 +50,9 @@ a tag da versão (data e hora) e `latest`. Para gerar só algumas:
 `.\deploy\build-push.ps1 -Only api,frontend`.
 
 O endereço da API fica gravado na imagem do frontend no build
-(`-ApiUrl`, padrão `http://192.168.1.40:5000`). Se a API mudar de endereço,
-gere o frontend de novo.
+(`-ApiUrl`, padrão `https://api.milheirinho.com`). Quem chama a API é o navegador do
+visitante, então use sempre o endereço público: com `http://192.168.1.40:5000` o site
+só funciona dentro da sua rede. Se a API mudar de endereço, gere o frontend de novo.
 
 ## 4. Subir o Milheirinho
 
