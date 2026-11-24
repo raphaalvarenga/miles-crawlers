@@ -123,7 +123,7 @@ async def insert_fare_snapshot(snapshot: dict):
             snapshot.get("provider"),
             snapshot.get("fare_option_id", 1),
             snapshot.get("miles_price"),
-            snapshot.get("taxes_cents", 0),
+            snapshot.get("taxes_cents"),
             snapshot.get("currency", "BRL"),
             snapshot.get("seats_available", 0),
             snapshot.get("crawler_url"),

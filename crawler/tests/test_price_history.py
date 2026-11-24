@@ -85,3 +85,9 @@ def test_history_failure_does_not_fail_the_job(monkeypatch):
     msg_calls, calls = _run(monkeypatch, history)
     assert "mark_job_done" in calls and "mark_job_failed" not in calls
     assert msg_calls == [("ack",)]
+
+
+def test_unknown_tax_stays_unknown_in_history():
+    # Taxa a confirmar (parceiras na Smiles) não vira 0 no histórico.
+    rows = summarize_price_history([snap(85000, taxes=None)])
+    assert rows[0]["taxes_cents"] is None

@@ -98,18 +98,25 @@ def parse_flights(data: dict) -> list:
                 "smiles_club_milhas": fares.get("SMILES_CLUB", {}).get("milhas"),
                 "money_brl": fares.get("MONEY", {}).get("dinheiro"),
                 # Taxa da tarifa usada no preço em milhas (Smiles; senão Smiles Club).
+                # None quando a busca não traz a taxa (voos de parceiras: o site calcula à parte).
                 "taxes_cents": _pick_tax(fares),
             })
     return results
 
 
-def _pick_tax(fares: dict) -> int:
+def _pick_tax(fares: dict) -> int | None:
+    """Taxa em centavos, ou None se a resposta não trouxe.
+
+    A busca da Smiles só traz costTax nos voos da GOL; nos de parceiras (KLM, Air France,
+    TAP, Iberia...) a taxa vem numa chamada à parte, quando a pessoa escolhe o voo. Sem ela,
+    gravamos None ("taxa a confirmar") em vez de 0, que parecia voo sem taxa.
+    """
     for fare_type in ("SMILES", "SMILES_CLUB"):
         tax = fares.get(fare_type, {}).get("taxa_centavos")
         if tax is not None:
             return tax
     taxes = [f.get("taxa_centavos") for f in fares.values() if f.get("taxa_centavos") is not None]
-    return taxes[0] if taxes else 0
+    return taxes[0] if taxes else None
 
 
 def select_best_flight(flights: list) -> dict | None:
@@ -175,7 +182,7 @@ def flight_to_snapshot(flight: dict, travel_date: str, provider: str) -> dict:
         "provider": provider,
         "fare_option_id": flight.get("fare_option_id", 1),
         "miles_price": miles_price,
-        "taxes_cents": flight.get("taxes_cents", 0),
+        "taxes_cents": flight.get("taxes_cents"),  # None: taxa a confirmar
         "currency": "BRL",
         "seats_available": flight.get("assentos", 0),
         "crawler_url": flight.get("crawler_url"),
@@ -219,7 +226,7 @@ def summarize_price_history(snapshots: list[dict]) -> list[dict]:
             "provider": provider,
             "class": cabin,
             "min_miles_price": cheapest["miles_price"],
-            "taxes_cents": cheapest.get("taxes_cents") or 0,
+            "taxes_cents": cheapest.get("taxes_cents"),
             "currency": cheapest.get("currency") or "BRL",
             "min_miles_price_direct": min(direct) if direct else None,
             "flights_found": len(items),

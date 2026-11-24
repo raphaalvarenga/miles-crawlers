@@ -84,7 +84,8 @@ def test_tax_comes_from_airline_cost_tax():
     assert flight_to_snapshot(flight, "2027-01-28", "smiles")["taxes_cents"] == 6214
 
 
-def test_missing_tax_stays_zero():
+def test_missing_tax_is_unknown():
+    # Voos de parceiras não trazem costTax na busca: a taxa fica "a confirmar" (None), não 0.
     flight = parse_smiles_flights(PAYLOAD)[0]
-    assert flight["taxes_cents"] == 0
-    assert flight_to_snapshot(flight, "2026-12-01", "smiles")["taxes_cents"] == 0
+    assert flight["taxes_cents"] is None
+    assert flight_to_snapshot(flight, "2026-12-01", "smiles")["taxes_cents"] is None
