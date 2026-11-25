@@ -13,6 +13,8 @@
     input[type=text], input[type=password], input[type=number] { width: 100%; box-sizing: border-box; padding: 6px 8px; }
     .row { display: flex; gap: 12px; } .row > div { flex: 1; }
     .check { font-weight: normal; display: flex; gap: 8px; align-items: center; }
+    .provider { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .provider input[type=number] { width: 80px; }
     button { margin: 14px 8px 0 0; padding: 6px 14px; cursor: pointer; }
     pre { background: #f3f5f9; padding: 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
     .msg { margin-left: 8px; color: #2f6f3a; }
@@ -28,13 +30,12 @@
   <label for="token">Token (o mesmo de BRIDGE_TOKEN)</label>
   <input type="password" id="token" autocomplete="off">
 
-  <label>Companhias</label>
+  <label>Companhias e teto de buscas por hora de cada uma</label>
   <div id="providers"></div>
 
   <div class="row">
     <div><label for="delayMinS">Intervalo mín. (s)</label><input type="number" id="delayMinS" min="0"></div>
     <div><label for="delayMaxS">Intervalo máx. (s)</label><input type="number" id="delayMaxS" min="0"></div>
-    <div><label for="maxPerHour">Máx. buscas/hora</label><input type="number" id="maxPerHour" min="1"></div>
   </div>
   <label class="check"><input type="checkbox" id="foreground"> Abrir a aba da busca em primeiro plano</label>
 

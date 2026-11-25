@@ -1,5 +1,5 @@
 import {
-  DEFAULT_SETTINGS, PROVIDERS, bridgeOriginPattern, bridgeUrlAllowed, loadSettings, saveSettings,
+  DEFAULT_SETTINGS, PROVIDERS, bridgeOriginPattern, bridgeUrlAllowed, hourLimit, loadSettings, saveSettings,
 } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
@@ -16,7 +16,6 @@ async function fill() {
   $("token").value = s.token;
   $("delayMinS").value = s.delayMinS;
   $("delayMaxS").value = s.delayMaxS;
-  $("maxPerHour").value = s.maxPerHour;
   $("foreground").checked = s.foreground;
   $("providers").innerHTML = "";
   for (const [id, p] of Object.entries(PROVIDERS)) {
@@ -27,7 +26,16 @@ async function fill() {
     box.value = id;
     box.checked = s.providers.includes(id);
     label.append(box, ` ${p.label}`);
-    $("providers").append(label);
+    const limit = document.createElement("input");
+    limit.type = "number";
+    limit.min = "1";
+    limit.dataset.limit = id;
+    limit.value = hourLimit(s, id);
+    limit.title = `Máx. buscas/hora em ${p.label}`;
+    const row = document.createElement("div");
+    row.className = "provider";
+    row.append(label, limit);
+    $("providers").append(row);
   }
 }
 
@@ -56,7 +64,11 @@ async function save() {
     providers: [...$("providers").querySelectorAll("input:checked")].map((b) => b.value),
     delayMinS: num("delayMinS", DEFAULT_SETTINGS.delayMinS),
     delayMaxS: num("delayMaxS", DEFAULT_SETTINGS.delayMaxS),
-    maxPerHour: Math.max(1, num("maxPerHour", DEFAULT_SETTINGS.maxPerHour)),
+    maxPerHourBy: Object.fromEntries([...$("providers").querySelectorAll("input[data-limit]")].map((input) => {
+      const v = Number(input.value);
+      const id = input.dataset.limit;
+      return [id, Number.isFinite(v) && v >= 1 ? Math.round(v) : DEFAULT_SETTINGS.maxPerHourBy[id]];
+    })),
     foreground: $("foreground").checked,
   });
   say("Salvo.");
@@ -64,6 +76,7 @@ async function save() {
 
 async function showStatus() {
   const { runtime } = await chrome.storage.local.get("runtime");
+  const settings = await loadSettings();
   if (!runtime) {
     $("status").textContent = "Ainda não rodou. Configure o token e salve.";
     return;
@@ -78,7 +91,13 @@ async function showStatus() {
     `Última consulta à ponte: ${when(runtime.lastPollAt)}`,
     "Último job de cada programa:",
     ...jobLines,
-    `Buscas na última hora: ${(runtime.pageTimes || []).filter((t) => Date.now() - t < 3_600_000).length}`,
+    "Buscas na última hora:",
+    ...Object.entries(PROVIDERS).map(([p, info]) => {
+      const used = ((runtime.pageTimesBy || {})[p] || []).filter((t) => Date.now() - t < 3_600_000).length;
+      const until = (runtime.limitedUntil || {})[p];
+      const stop = until && until > Date.now() ? ` · parada pelo teto até ${new Date(until).toLocaleTimeString("pt-BR")}` : "";
+      return `  ${info.label}: ${used}/${hourLimit(settings, p)}${stop}`;
+    }),
     `Concluídos ${runtime.counters?.done ?? 0} · falhas ${runtime.counters?.failed ?? 0} · bloqueios ${runtime.counters?.blocked ?? 0}`,
     `Pausas: ${paused}`,
     `Último erro: ${runtime.lastError ? `${when(runtime.lastError.at)} — ${runtime.lastError.message}` : "—"}`,

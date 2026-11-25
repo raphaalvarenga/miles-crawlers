@@ -96,11 +96,11 @@ Na página de opções:
 | **Token** | o mesmo do passo 2 |
 | **Companhias** | Smiles, Azul e/ou LATAM |
 | **Intervalo mín./máx.** | 8 e 20 s (padrão): espera aleatória entre buscas da mesma companhia |
+| **Teto por hora** (ao lado de cada companhia) | Smiles 60, Azul 40, LATAM 40 (padrão) |
+| **Abrir a aba em primeiro plano** | desmarcado, para as abas não roubarem o foco |
 
 Cada programa marcado roda em paralelo, na sua própria aba: uma busca da Smiles
-não espera a da Azul terminar.
-| **Máx. buscas/hora** | 60 (padrão) |
-| **Abrir a aba em primeiro plano** | desmarcado, para as abas não roubarem o foco |
+não espera a da Azul terminar, e cada um tem o seu teto por hora.
 
 Clique em **Salvar** e depois em **Testar ponte**. A resposta deve começar com
 "Ponte ok". Esse teste só confirma que a ponte está no ar, não o token: o token é

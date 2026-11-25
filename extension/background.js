@@ -2,7 +2,7 @@
 // laço pede um job à ponte local (long-poll), abre a URL de busca numa aba, espera o
 // hook.js capturar a resposta da API de disponibilidade, devolve o JSON cru à ponte
 // e fecha a aba. Cada programa tem um job por vez e o seu próprio intervalo entre
-// buscas; o teto de buscas por hora vale para o Chrome todo.
+// buscas e o seu teto de buscas por hora (uma companhia não gasta a cota da outra).
 //
 // Bloqueio anti-bot: avisa a ponte (o job falha), deixa a aba aberta, pausa só
 // aquele programa e notifica. Quando a pessoa resolve e a página volta ao normal
@@ -11,12 +11,16 @@
 // O service worker do MV3 pode ser descarregado a qualquer hora: o que precisa
 // sobreviver fica em chrome.storage.local, e um alarme a cada 30 s religa os laços.
 import {
-  EXTENSION_VERSION, PROVIDERS, bridgeUrlAllowed, jobUrlAllowed, loadSettings,
+  EXTENSION_VERSION, PROVIDERS, bridgeUrlAllowed, hourLimit, jobUrlAllowed, loadSettings,
 } from "./config.js";
 
 const ALARM = "miles-tick";
 const RUNTIME_KEY = "runtime";
 const POLL_WAIT_S = 20; // < 30 s de ociosidade do service worker
+// Prazo das chamadas à ponte: sem ele, uma resposta que nunca chega deixava o laço
+// daquele programa marcado como "rodando" para sempre (e o alarme não o religava).
+const BRIDGE_TIMEOUT_MS = 15_000;
+const HOUR_MS = 3_600_000;
 // Depois de um erro de limite do site (modal de erro ou HTTP 429), o programa espera isso.
 const SITE_ERROR_COOLDOWN_MS = 2 * 60 * 1000;
 
@@ -31,7 +35,8 @@ async function loadRuntime() {
   const merged = {
     paused: {},        // provider → { since, tabId, url }
     nextAllowedAt: {}, // provider → ms: ritmo entre buscas do mesmo programa
-    pageTimes: [],     // ms das buscas da última hora (todos os programas)
+    pageTimesBy: {},   // provider → ms das buscas da última hora daquele programa
+    limitedUntil: {},  // provider → ms: parado pelo teto por hora até essa hora
     lastPollAt: null,
     lastJob: null,     // o mais recente de todos: { id, provider, url, at, outcome }
     lastJobs: {},      // provider → último job daquele programa
@@ -42,6 +47,10 @@ async function loadRuntime() {
   // 0.1.x guardava um número só.
   if (typeof merged.nextAllowedAt !== "object" || merged.nextAllowedAt === null) merged.nextAllowedAt = {};
   if (typeof merged.lastJobs !== "object" || merged.lastJobs === null) merged.lastJobs = {};
+  // Até 0.6.x: uma lista só (pageTimes) para todos os programas.
+  if (typeof merged.pageTimesBy !== "object" || merged.pageTimesBy === null) merged.pageTimesBy = {};
+  if (typeof merged.limitedUntil !== "object" || merged.limitedUntil === null) merged.limitedUntil = {};
+  delete merged.pageTimes;
   return merged;
 }
 
@@ -66,7 +75,7 @@ function setError(message) {
 }
 
 // ── Ponte ─────────────────────────────────────────────────────────────────
-async function bridge(settings, method, path, body) {
+async function bridge(settings, method, path, body, timeoutMs = BRIDGE_TIMEOUT_MS) {
   if (!bridgeUrlAllowed(settings.bridgeUrl)) {
     throw new Error("URL da ponte recusada: use https (http só em 127.0.0.1/localhost ou IP da rede local)");
   }
@@ -74,6 +83,7 @@ async function bridge(settings, method, path, body) {
     method,
     headers: { Authorization: `Bearer ${settings.token}`, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (response.status === 204) return null;
   if (!response.ok) {
@@ -189,7 +199,7 @@ function finishJob(job, outcome, extra) {
 async function processJob(settings, job) {
   const now = Date.now();
   await updateRuntime((runtime) => {
-    runtime.pageTimes.push(now);
+    (runtime.pageTimesBy[job.provider] ||= []).push(now);
     runtime.nextAllowedAt[job.provider] = now + randomDelayMs(settings);
     runtime.lastJob = { id: job.id, provider: job.provider, url: job.url, at: now, outcome: "running" };
     runtime.lastJobs[job.provider] = { ...runtime.lastJob };
@@ -266,12 +276,23 @@ async function providerLoop(provider) {
 
       const gate = await updateRuntime((runtime) => {
         const now = Date.now();
-        runtime.pageTimes = runtime.pageTimes.filter((t) => now - t < 3_600_000);
+        const pages = (runtime.pageTimesBy[provider] || []).filter((t) => now - t < HOUR_MS);
+        runtime.pageTimesBy[provider] = pages;
         if (runtime.paused[provider]) return { stop: true };
-        if (runtime.pageTimes.length >= settings.maxPerHour) {
-          runtime.lastError = { at: now, message: `limite de ${settings.maxPerHour} buscas/hora atingido` };
-          return { stop: true }; // o alarme tenta de novo
+        const limit = hourLimit(settings, provider);
+        if (pages.length >= limit) {
+          // Volta quando a busca mais antiga da janela completar 1 h (o alarme religa).
+          const until = Math.min(...pages) + HOUR_MS;
+          if (runtime.limitedUntil[provider] !== until) {
+            runtime.limitedUntil[provider] = until;
+            runtime.lastError = {
+              at: now,
+              message: `${PROVIDERS[provider].label}: teto de ${limit} buscas/hora; volta às ${new Date(until).toLocaleTimeString("pt-BR")}`,
+            };
+          }
+          return { stop: true };
         }
+        delete runtime.limitedUntil[provider];
         return { waitMs: (runtime.nextAllowedAt[provider] || 0) - now };
       });
       if (gate.stop) break;
@@ -282,7 +303,8 @@ async function providerLoop(provider) {
 
       let job = null;
       try {
-        job = await bridge(settings, "GET", `/jobs/next?provider=${encodeURIComponent(provider)}&wait=${POLL_WAIT_S}`);
+        job = await bridge(settings, "GET", `/jobs/next?provider=${encodeURIComponent(provider)}&wait=${POLL_WAIT_S}`,
+          undefined, (POLL_WAIT_S + 15) * 1000);
         await updateRuntime((runtime) => {
           runtime.lastPollAt = Date.now();
         });

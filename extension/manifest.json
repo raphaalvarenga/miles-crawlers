@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Milheirinho Coletor",
   "description": "Coleta preços em milhas da Smiles, Azul e LATAM para o Milheirinho: pega buscas da ponte (no PC ou no homelab), abre a busca do programa e devolve o resultado.",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "minimum_chrome_version": "116",
   "background": {
     "service_worker": "background.js",

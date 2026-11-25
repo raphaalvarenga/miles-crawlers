@@ -7,9 +7,17 @@ export const DEFAULT_SETTINGS = {
   providers: ["smiles", "azul", "latam"],
   delayMinS: 8,     // intervalo aleatório entre buscas da mesma companhia
   delayMaxS: 20,
-  maxPerHour: 60,   // teto de páginas abertas por hora
+  // Teto de páginas abertas por hora, separado por companhia: uma rodada grande da Smiles
+  // não pode gastar a cota da Azul (antes era um teto só para o Chrome todo).
+  maxPerHourBy: { smiles: 60, azul: 40, latam: 40 },
   foreground: false // abrir a aba da busca em primeiro plano
 };
+
+/** Teto por hora daquela companhia (o padrão cobre companhia sem valor salvo). */
+export function hourLimit(settings, provider) {
+  const value = Number((settings.maxPerHourBy || {})[provider]);
+  return Number.isFinite(value) && value >= 1 ? value : DEFAULT_SETTINGS.maxPerHourBy[provider] ?? 40;
+}
 
 // Por provider: de onde a URL do job pode vir e quanto esperar a resposta.
 export const PROVIDERS = {
@@ -32,7 +40,10 @@ export const PROVIDERS = {
 
 export async function loadSettings() {
   const { settings } = await chrome.storage.local.get("settings");
-  return { ...DEFAULT_SETTINGS, ...(settings || {}) };
+  const merged = { ...DEFAULT_SETTINGS, ...(settings || {}) };
+  merged.maxPerHourBy = { ...DEFAULT_SETTINGS.maxPerHourBy, ...(settings?.maxPerHourBy || {}) };
+  delete merged.maxPerHour; // até 0.6.x: teto único, substituído pelo de cada companhia
+  return merged;
 }
 
 export async function saveSettings(settings) {
