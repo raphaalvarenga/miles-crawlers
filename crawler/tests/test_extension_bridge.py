@@ -126,3 +126,43 @@ def test_requires_token_and_health_is_public():
             assert r.status == 200 and (await r.json())["providers"] == ["azul", "latam", "smiles"]
 
     asyncio.run(with_bridge(scenario))
+
+
+def test_consumers_lists_who_polls_with_id_name_version_and_ip():
+    headers = {**AUTH, "X-Consumer-Id": "abc-123", "X-Consumer-Name": "PC%20do%20escrit%C3%B3rio",
+               "X-Extension-Version": "0.8.0"}
+
+    async def scenario(bridge, http):
+        crawl = asyncio.create_task(bridge.crawl("azul", "GIG", "MAD", "2026-12-26"))
+        async with http.get("/jobs/next?provider=azul&wait=2", headers=headers) as r:
+            job = await r.json()
+        async with http.get("/consumers", headers=AUTH) as r:
+            (c,) = (await r.json())["consumers"]
+        assert (c["id"], c["name"], c["version"], c["ip"], c["online"]) == (
+            "abc-123", "PC do escritório", "0.8.0", "127.0.0.1", True)
+        assert c["current_job"] == job["id"] and c["jobs"]["claimed"] == 1 and "azul" in c["last_poll_at"]
+        async with http.post(f"/jobs/{job['id']}/result", headers=headers, json={"payload": FIXTURE}) as r:
+            assert r.status == 200
+        await crawl
+        async with http.get("/consumers", headers=AUTH) as r:
+            (c,) = (await r.json())["consumers"]
+        assert c["jobs"]["done"] == 1 and c["current_job"] is None
+        # /health é público: só a contagem, sem id nem IP.
+        async with http.get("/health") as r:
+            health = await r.json()
+        assert health["consumers_online"] == 1 and "consumers" not in health
+        async with http.get("/consumers") as r:
+            assert r.status == 401
+
+    asyncio.run(with_bridge(scenario))
+
+
+def test_old_extension_without_id_is_listed_by_ip():
+    async def scenario(bridge, http):
+        async with http.get("/jobs/next?provider=smiles&wait=0", headers=AUTH) as r:
+            assert r.status == 204
+        async with http.get("/consumers", headers=AUTH) as r:
+            (c,) = (await r.json())["consumers"]
+        assert c["id"] == "ip:127.0.0.1" and c["name"] == "" and "smiles" in c["last_poll_at"]
+
+    asyncio.run(with_bridge(scenario))

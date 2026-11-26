@@ -53,6 +53,9 @@ services:
       - target: 8765
         published: 8765
         protocol: tcp
+        # host: a ponte vê o IP de verdade de cada extensão (GET /consumers). No modo
+        # padrão (ingress) do Swarm, toda conexão chega com o IP interno da rede do Swarm.
+        mode: host
     environment:
       BRIDGE_TOKEN: ${BRIDGE_TOKEN}
       # Jobs por fila (programa) que a ponte segura ao mesmo tempo. Use o número de

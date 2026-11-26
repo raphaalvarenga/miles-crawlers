@@ -5,11 +5,16 @@ abrir um navegador headless entrega o job à extensão e espera o JSON cru que a
 página da companhia recebeu. O parse e as gravações no Postgres seguem no Python.
 
 HTTP (Bearer token em tudo, menos /health):
-    GET  /health                       estado da ponte e da extensão
+    GET  /health                       estado da ponte e da extensão (sem dados de quem conecta)
+    GET  /consumers                    extensões que falaram com a ponte nas últimas 24 h
     GET  /jobs/next?provider=azul|latam|smiles&wait=20   long-poll: 200 com o job ou 204
     POST /jobs/{id}/result   {"url", "payload"}   JSON da API de disponibilidade
     POST /jobs/{id}/failed   {"error"}
     POST /jobs/{id}/blocked  {"url"}               verificação anti-bot na aba
+
+Cada extensão se identifica nos cabeçalhos X-Consumer-Id (gerado na instalação),
+X-Consumer-Name (nome dado nas opções, codificado como URL) e X-Extension-Version.
+O IP é o de quem abriu a conexão.
 """
 
 from __future__ import annotations
@@ -18,9 +23,11 @@ import asyncio
 import itertools
 import logging
 import secrets
+import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Optional
+from urllib.parse import unquote
 
 from aiohttp import web
 
@@ -36,6 +43,9 @@ from worker.smiles_parser import build_url as smiles_build_url, parse_smiles_fli
 logger = logging.getLogger(__name__)
 
 MAX_BODY_BYTES = 20 * 1024 * 1024
+CONSUMER_ONLINE_S = 120     # sem falar com a ponte há mais que isso: desconectada
+CONSUMER_FORGET_S = 86_400  # some da lista depois de 24 h sem aparecer
+_SAFE_ID = re.compile(r"[^A-Za-z0-9._-]")
 
 
 @dataclass(frozen=True)
@@ -69,6 +79,37 @@ class BridgeJob:
     created_at: float
     future: asyncio.Future
     claimed_at: Optional[float] = None
+    claimed_by: Optional[str] = None
+
+
+@dataclass
+class Consumer:
+    """Uma extensão (um Chrome) que fala com a ponte."""
+    id: str
+    name: str
+    version: str
+    ip: str
+    first_seen: float
+    last_seen: float
+    last_poll_at: dict[str, float] = field(default_factory=dict)  # provider → hora
+    jobs: dict[str, int] = field(default_factory=lambda: {"claimed": 0, "done": 0, "failed": 0, "blocked": 0})
+    current_job: Optional[str] = None
+    last_job_at: Optional[float] = None
+
+    def as_dict(self, now: float) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "version": self.version,
+            "ip": self.ip,
+            "online": now - self.last_seen <= CONSUMER_ONLINE_S,
+            "first_seen": self.first_seen,
+            "last_seen": self.last_seen,
+            "last_poll_at": self.last_poll_at,
+            "jobs": self.jobs,
+            "current_job": self.current_job,
+            "last_job_at": self.last_job_at,
+        }
 
 
 class ExtensionBridge:
@@ -92,6 +133,7 @@ class ExtensionBridge:
         self._seq = itertools.count(1)
         self.last_poll_at: dict[str, float] = {}
         self.last_result_at: dict[str, float] = {}
+        self.consumers: dict[str, Consumer] = {}
 
     # ── lado do worker ────────────────────────────────────────────────────
     def _queue(self, provider: str) -> asyncio.Queue:
@@ -147,6 +189,7 @@ class ExtensionBridge:
     def app(self) -> web.Application:
         app = web.Application(middlewares=[self._auth], client_max_size=MAX_BODY_BYTES)
         app.router.add_get("/health", self._health)
+        app.router.add_get("/consumers", self._consumers)
         app.router.add_get("/jobs/next", self._next)
         app.router.add_post("/jobs/{job_id}/result", self._result)
         app.router.add_post("/jobs/{job_id}/failed", self._failed)
@@ -168,7 +211,37 @@ class ExtensionBridge:
                 return web.json_response({"error": "token inválido"}, status=401)
         return await handler(request)
 
+    def _consumer(self, request: web.Request) -> Consumer:
+        """Registra (ou atualiza) quem fez a chamada; extensão antiga sem id vira 'ip:<ip>'."""
+        now = time.time()
+        ip = request.remote or "?"
+        raw_id = _SAFE_ID.sub("", request.headers.get("X-Consumer-Id", ""))[:64]
+        consumer_id = raw_id or f"ip:{ip}"
+        name = unquote(request.headers.get("X-Consumer-Name", "")).strip()[:60]
+        version = _SAFE_ID.sub("", request.headers.get("X-Extension-Version", ""))[:20]
+        consumer = self.consumers.get(consumer_id)
+        if consumer is None:
+            consumer = self.consumers[consumer_id] = Consumer(consumer_id, name, version, ip, now, now)
+            logger.info("Ponte: extensão nova %s (%s, %s, v%s)", consumer_id, name or "sem nome", ip, version or "?")
+        consumer.name, consumer.version, consumer.ip, consumer.last_seen = name, version, ip, now
+        for key in [k for k, c in self.consumers.items() if now - c.last_seen > CONSUMER_FORGET_S]:
+            del self.consumers[key]
+        return consumer
+
+    def _finish(self, request: web.Request, job: BridgeJob, outcome: str) -> None:
+        consumer = self._consumer(request)
+        consumer.jobs[outcome] += 1
+        consumer.last_job_at = time.time()
+        if consumer.current_job == job.id:
+            consumer.current_job = None
+
+    async def _consumers(self, _request: web.Request):
+        now = time.time()
+        items = sorted(self.consumers.values(), key=lambda c: c.last_seen, reverse=True)
+        return web.json_response({"now": now, "consumers": [c.as_dict(now) for c in items]})
+
     async def _health(self, _request: web.Request):
+        now = time.time()
         return web.json_response({
             "ok": True,
             "providers": sorted(PROVIDERS),
@@ -176,6 +249,7 @@ class ExtensionBridge:
             "in_flight": sum(1 for j in self._jobs.values() if j.claimed_at is not None),
             "last_poll_at": self.last_poll_at,
             "last_result_at": self.last_result_at,
+            "consumers_online": sum(1 for c in self.consumers.values() if now - c.last_seen <= CONSUMER_ONLINE_S),
         })
 
     async def _next(self, request: web.Request):
@@ -183,6 +257,8 @@ class ExtensionBridge:
         if provider not in PROVIDERS:
             return web.json_response({"error": f"provider desconhecido: {provider}"}, status=400)
         self.last_poll_at[provider] = time.time()
+        consumer = self._consumer(request)
+        consumer.last_poll_at[provider] = consumer.last_seen
         try:
             wait = min(max(float(request.query.get("wait", self.poll_wait_s)), 0), 25)
         except ValueError:
@@ -199,7 +275,10 @@ class ExtensionBridge:
             if job.future.done():  # expirou antes de alguém pegar
                 continue
             job.claimed_at = time.time()
-            logger.info("Ponte: job %s entregue à extensão", job.id)
+            job.claimed_by = consumer.id
+            consumer.current_job = job.id
+            consumer.jobs["claimed"] += 1
+            logger.info("Ponte: job %s entregue à extensão %s (%s)", job.id, consumer.name or consumer.id, consumer.ip)
             return web.json_response({
                 "id": job.id,
                 "provider": job.provider,
@@ -230,6 +309,7 @@ class ExtensionBridge:
         if not isinstance(payload, dict):
             return web.json_response({"error": "payload deve ser o JSON da API"}, status=400)
         self.last_result_at[job.provider] = time.time()
+        self._finish(request, job, "done")
         job.future.set_result(payload)
         return web.json_response({"ok": True})
 
@@ -240,6 +320,7 @@ class ExtensionBridge:
             return web.json_response({"error": "job inexistente ou expirado"}, status=410)
         error = str(body.get("error") or "erro sem detalhe")[:500]
         logger.warning("Ponte: extensão falhou o job %s: %s", job.id, error)
+        self._finish(request, job, "failed")
         job.future.set_exception(BridgeError(f"extensão: {error}"))
         return web.json_response({"ok": True})
 
@@ -250,5 +331,6 @@ class ExtensionBridge:
             return web.json_response({"error": "job inexistente ou expirado"}, status=410)
         url = str(body.get("url") or job.url)[:500]
         logger.warning("Ponte: verificação anti-bot no job %s (%s); extensão pausou %s", job.id, url, job.provider)
+        self._finish(request, job, "blocked")
         job.future.set_exception(BridgeError(f"bloqueio anti-bot em {url}"))
         return web.json_response({"ok": True})

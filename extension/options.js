@@ -1,5 +1,5 @@
 import {
-  DEFAULT_SETTINGS, PROVIDERS, bridgeOriginPattern, bridgeUrlAllowed, hourLimit, loadSettings, saveSettings,
+  DEFAULT_SETTINGS, PROVIDERS, bridgeOriginPattern, bridgeUrlAllowed, consumerId, hourLimit, loadSettings, saveSettings,
 } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
@@ -14,6 +14,7 @@ async function fill() {
   $("enabled").checked = s.enabled;
   $("bridgeUrl").value = s.bridgeUrl;
   $("token").value = s.token;
+  $("consumerName").value = s.consumerName;
   $("delayMinS").value = s.delayMinS;
   $("delayMaxS").value = s.delayMaxS;
   $("foreground").checked = s.foreground;
@@ -61,6 +62,7 @@ async function save() {
     enabled: $("enabled").checked,
     bridgeUrl,
     token: $("token").value.trim(),
+    consumerName: $("consumerName").value.trim().slice(0, 60),
     providers: [...$("providers").querySelectorAll("input:checked")].map((b) => b.value),
     delayMinS: num("delayMinS", DEFAULT_SETTINGS.delayMinS),
     delayMaxS: num("delayMaxS", DEFAULT_SETTINGS.delayMaxS),
@@ -88,6 +90,7 @@ async function showStatus() {
     ? jobs.map(([p, j]) => `  ${PROVIDERS[p]?.label ?? p}: ${j.id} ${j.outcome} em ${when(j.at)}`)
     : [`  ${runtime.lastJob ? `${runtime.lastJob.id} ${runtime.lastJob.outcome} em ${when(runtime.lastJob.at)}` : "—"}`];
   $("status").textContent = [
+    `Identificador desta extensão: ${await consumerId()}`,
     `Última consulta à ponte: ${when(runtime.lastPollAt)}`,
     "Último job de cada programa:",
     ...jobLines,

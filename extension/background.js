@@ -11,7 +11,7 @@
 // O service worker do MV3 pode ser descarregado a qualquer hora: o que precisa
 // sobreviver fica em chrome.storage.local, e um alarme a cada 30 s religa os laços.
 import {
-  EXTENSION_VERSION, PROVIDERS, bridgeUrlAllowed, hourLimit, jobUrlAllowed, loadSettings,
+  EXTENSION_VERSION, PROVIDERS, bridgeUrlAllowed, consumerId, hourLimit, jobUrlAllowed, loadSettings,
 } from "./config.js";
 
 const ALARM = "miles-tick";
@@ -81,7 +81,14 @@ async function bridge(settings, method, path, body, timeoutMs = BRIDGE_TIMEOUT_M
   }
   const response = await fetch(settings.bridgeUrl.replace(/\/+$/, "") + path, {
     method,
-    headers: { Authorization: `Bearer ${settings.token}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${settings.token}`,
+      "Content-Type": "application/json",
+      // Quem está chamando: a ponte lista as extensões conectadas (GET /consumers).
+      "X-Consumer-Id": await consumerId(),
+      "X-Consumer-Name": encodeURIComponent(settings.consumerName || ""),
+      "X-Extension-Version": EXTENSION_VERSION,
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   });

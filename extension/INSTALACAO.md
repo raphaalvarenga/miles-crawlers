@@ -94,6 +94,7 @@ Na página de opções:
 | **Ligado** | marcado |
 | **URL da ponte** | `http://192.168.1.40:8765` (homelab) ou `http://127.0.0.1:8765` (PC). Num endereço que não seja `127.0.0.1`/`localhost`, o Chrome pede para liberar o acesso ao clicar em **Salvar**: aceite. |
 | **Token** | o mesmo do passo 2 |
+| **Nome deste Chrome** | um nome para reconhecer este navegador na lista da ponte (`GET /consumers`), ex.: "PC do escritório" |
 | **Companhias** | Smiles, Azul e/ou LATAM |
 | **Intervalo mín./máx.** | 8 e 20 s (padrão): espera aleatória entre buscas da mesma companhia |
 | **Teto por hora** (ao lado de cada companhia) | Smiles 60, Azul 40, LATAM 40 (padrão) |

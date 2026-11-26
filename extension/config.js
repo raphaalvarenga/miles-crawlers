@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS = {
   enabled: true,
   bridgeUrl: "http://127.0.0.1:8765",
   token: "",
+  consumerName: "", // como este Chrome aparece na lista de extensões da ponte
   providers: ["smiles", "azul", "latam"],
   delayMinS: 8,     // intervalo aleatório entre buscas da mesma companhia
   delayMaxS: 20,
@@ -44,6 +45,20 @@ export async function loadSettings() {
   merged.maxPerHourBy = { ...DEFAULT_SETTINGS.maxPerHourBy, ...(settings?.maxPerHourBy || {}) };
   delete merged.maxPerHour; // até 0.6.x: teto único, substituído pelo de cada companhia
   return merged;
+}
+
+/** Identificador fixo desta instalação (a ponte usa para listar quem está conectado). */
+// Uma promessa só: os laços de cada companhia pedem ao mesmo tempo e não podem gerar dois.
+let consumerIdPromise = null;
+export function consumerId() {
+  consumerIdPromise ||= (async () => {
+    const { consumerId: saved } = await chrome.storage.local.get("consumerId");
+    if (saved) return saved;
+    const id = crypto.randomUUID();
+    await chrome.storage.local.set({ consumerId: id });
+    return id;
+  })();
+  return consumerIdPromise;
 }
 
 export async function saveSettings(settings) {
